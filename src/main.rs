@@ -226,6 +226,7 @@ fn setup_assets(
     mut commands: Commands, 
     asset_server: Res<AssetServer>
 ) {
+    info!("🔧 Loading sprite assets...");
     // Load individual sprite files
     let assets = GameAssets {
         sicario_sprite: asset_server.load("sprites/units/sicario.png"),
@@ -245,6 +246,7 @@ fn setup_assets(
     };
     
     commands.insert_resource(assets);
+    info!("✅ Assets loaded successfully!");
 }
 
 fn setup_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
@@ -387,6 +389,7 @@ fn setup_game(
     mut commands: Commands, 
     game_assets: Res<GameAssets>
 ) {
+    info!("🚀 Starting game setup...");
     info!("🎮 Battle of Culiacán - October 17, 2019");
     info!("🏛️  Government forces attempt to capture Ovidio Guzmán López");
     info!("⚔️  Sinaloa Cartel prepares defensive operations");
@@ -512,6 +515,7 @@ fn spawn_ovidio(
             texture: game_assets.ovidio_sprite.clone(),
             sprite: Sprite {
                 color: Color::rgb(1.0, 0.8, 0.0), // Golden tint for VIP
+                custom_size: Some(Vec2::new(48.0, 48.0)), // Consistent sizing
                 ..default()
             },
             transform: Transform::from_translation(world_to_iso(position)),
@@ -584,6 +588,10 @@ fn spawn_unit(
     let entity = commands.spawn((
         SpriteBundle {
             texture: sprite_handle,
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(48.0, 48.0)), // Ensure consistent sprite size
+                ..default()
+            },
             transform: Transform::from_translation(world_to_iso(position)),
             ..default()
         },
@@ -1218,6 +1226,7 @@ fn handle_input(
                 texture: game_assets.roadblock_sprite.clone(),
                 sprite: Sprite {
                     color: Color::rgb(0.8, 0.6, 0.3), // Slightly brighter tint for visibility
+                    custom_size: Some(Vec2::new(48.0, 48.0)), // Consistent sizing
                     ..default()
                 },
                 transform: Transform::from_translation(world_to_iso(position)),
