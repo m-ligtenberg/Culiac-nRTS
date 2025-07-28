@@ -10,6 +10,8 @@ use bevy::prelude::*;
 use bevy_kira_audio::prelude::{Audio as KiraAudio, AudioSource as KiraAudioSource, AudioPlugin as KiraAudioPlugin};
 use rand::{thread_rng, Rng};
 use std::time::Duration;
+use serde::{Deserialize, Serialize};
+use std::fs;
 
 // ==================== AUDIO SYSTEM ====================
 
@@ -247,6 +249,7 @@ fn main() {
         }))
         .add_plugins(KiraAudioPlugin)
         .init_resource::<GameState>()
+        .init_resource::<AiDirector>()
         .add_systems(Startup, (setup_assets, setup_ui))
         .add_systems(Update, setup_game.run_if(resource_exists::<GameAssets>()).run_if(not(resource_exists::<GameSetupComplete>())))
         .add_systems(Update, (
@@ -254,6 +257,8 @@ fn main() {
             unit_selection_system,
             selection_indicator_system,
             minimap_system,
+            mission_system,
+            ai_director_system,
             wave_spawner_system,
             unit_ai_system,
             movement_system,
@@ -1312,6 +1317,33 @@ fn game_phase_system(
     }
 }
 
+// ==================== SAVE/LOAD SYSTEM ====================
+
+#[derive(Serialize, Deserialize)]
+struct SaveData {
+    game_state: GameState,
+    timestamp: String,
+    version: String,
+}
+
+fn save_game(game_state: &GameState) -> Result<(), Box<dyn std::error::Error>> {
+    let save_data = SaveData {
+        game_state: game_state.clone(),
+        timestamp: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+        version: "1.0.0".to_string(),
+    };
+    
+    let json = serde_json::to_string_pretty(&save_data)?;
+    fs::write("culiacan_save.json", json)?;
+    Ok(())
+}
+
+fn load_game() -> Result<GameState, Box<dyn std::error::Error>> {
+    let json = fs::read_to_string("culiacan_save.json")?;
+    let save_data: SaveData = serde_json::from_str(&json)?;
+    Ok(save_data.game_state)
+}
+
 // ==================== CAMERA CONTROL SYSTEM ====================
 
 fn camera_control_system(
@@ -1514,6 +1546,196 @@ fn minimap_system(
             
             commands.entity(minimap_entity).add_child(icon_entity);
         }
+    }
+}
+
+// ==================== MISSION SYSTEM ====================
+
+#[derive(Component)]
+struct MissionObjective {
+    objective_type: MissionObjectiveType,
+    description: String,
+    completed: bool,
+    required_for_victory: bool,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+enum MissionObjectiveType {
+    DefendOvidio,
+    SurviveWaves(u32),
+    EliminateTargets(u32),
+    ControlArea(Vec3, f32), // position, radius
+    EscortUnit(Entity),
+}
+
+fn mission_system(
+    mut game_state: ResMut<GameState>,
+    unit_query: Query<&Unit>,
+    time: Res<Time>,
+    mut objective_query: Query<&mut MissionObjective>,
+) {
+    // Check mission completion based on current mission
+    match game_state.campaign_progress.current_mission {
+        MissionId::InitialRaid => {
+            // Mission 1: Survive the initial assault (5 waves)
+            if game_state.current_wave >= 5 {
+                let ovidio_alive = unit_query.iter().any(|u| u.unit_type == UnitType::Ovidio && u.health > 0.0);
+                if ovidio_alive && game_state.mission_timer > 300.0 {
+                    complete_mission(&mut game_state, MissionId::InitialRaid);
+                    start_next_mission(&mut game_state, MissionId::UrbanWarfare);
+                }
+            }
+        },
+        MissionId::UrbanWarfare => {
+            // Mission 2: Control the streets (eliminate 10 military units)
+            let military_count = unit_query.iter().filter(|u| u.faction == Faction::Military).count();
+            if military_count <= 5 && game_state.cartel_score >= 100 {
+                complete_mission(&mut game_state, MissionId::UrbanWarfare);
+                start_next_mission(&mut game_state, MissionId::GovernmentResponse);
+            }
+        },
+        MissionId::GovernmentResponse => {
+            // Mission 3: Political pressure phase
+            if game_state.mission_timer > 600.0 {
+                complete_mission(&mut game_state, MissionId::GovernmentResponse);
+                start_next_mission(&mut game_state, MissionId::Resolution);
+            }
+        },
+        MissionId::Resolution => {
+            // Mission 4: Final negotiations - historically accurate ending
+            if game_state.mission_timer > 900.0 {
+                complete_mission(&mut game_state, MissionId::Resolution);
+                info!("🏆 CAMPAIGN COMPLETE: Historical outcome achieved!");
+                info!("📰 The Battle of Culiacán ends with Ovidio's release");
+                game_state.game_phase = GamePhase::GameOver;
+            }
+        },
+    }
+}
+
+fn complete_mission(game_state: &mut GameState, mission_id: MissionId) {
+    if !game_state.campaign_progress.completed_missions.contains(&mission_id) {
+        game_state.campaign_progress.completed_missions.push(mission_id.clone());
+        game_state.campaign_progress.total_score += game_state.cartel_score;
+        
+        play_tactical_sound("radio", &format!("Mission {:?} completed successfully!", mission_id));
+        info!("✅ Mission {:?} COMPLETED! Score: {}", mission_id, game_state.cartel_score);
+    }
+}
+
+fn start_next_mission(game_state: &mut GameState, next_mission: MissionId) {
+    game_state.campaign_progress.current_mission = next_mission.clone();
+    game_state.mission_timer = 0.0; // Reset timer for new mission
+    
+    let mission_briefing = match next_mission {
+        MissionId::UrbanWarfare => "🏙️ MISSION 2: URBAN WARFARE - Control the streets of Culiacán",
+        MissionId::GovernmentResponse => "🏛️ MISSION 3: POLITICAL PRESSURE - Government evaluates options", 
+        MissionId::Resolution => "🤝 MISSION 4: RESOLUTION - Final negotiations begin",
+        _ => "📋 New mission starting...",
+    };
+    
+    play_tactical_sound("radio", mission_briefing);
+    info!("🎯 {}", mission_briefing);
+}
+
+// ==================== AI DIRECTOR SYSTEM ====================
+
+#[derive(Resource)]
+struct AiDirector {
+    intensity_level: f32,
+    last_spawn_time: f32,
+    player_performance: f32,
+    adaptive_difficulty: bool,
+}
+
+impl Default for AiDirector {
+    fn default() -> Self {
+        Self {
+            intensity_level: 1.0,
+            last_spawn_time: 0.0,
+            player_performance: 0.5, // 0.0 = struggling, 1.0 = dominating
+            adaptive_difficulty: true,
+        }
+    }
+}
+
+fn ai_director_system(
+    mut ai_director: ResMut<AiDirector>,
+    mut game_state: ResMut<GameState>,
+    mut commands: Commands,
+    game_assets: Res<GameAssets>,
+    unit_query: Query<&Unit>,
+    time: Res<Time>,
+) {
+    ai_director.last_spawn_time += time.delta_seconds();
+    
+    // Calculate player performance metrics
+    let cartel_units = unit_query.iter().filter(|u| u.faction == Faction::Cartel).count();
+    let military_units = unit_query.iter().filter(|u| u.faction == Faction::Military).count();
+    let ovidio_alive = unit_query.iter().any(|u| u.unit_type == UnitType::Ovidio && u.health > 0.0);
+    
+    // Update performance based on current situation
+    let performance_factor = match (cartel_units, military_units, ovidio_alive) {
+        (c, m, true) if c > m => 0.8, // Player doing well
+        (c, m, true) if c == m => 0.5, // Balanced
+        (c, m, true) if c < m => 0.2, // Player struggling
+        (_, _, false) => 0.0, // Ovidio dead - critical situation
+    };
+    
+    ai_director.player_performance = ai_director.player_performance * 0.9 + performance_factor * 0.1;
+    
+    // Adjust difficulty based on mission and performance
+    let base_difficulty = match game_state.campaign_progress.difficulty_level {
+        DifficultyLevel::Recruit => 0.8,
+        DifficultyLevel::Veteran => 1.0,
+        DifficultyLevel::Elite => 1.3,
+    };
+    
+    let mission_difficulty = match game_state.campaign_progress.current_mission {
+        MissionId::InitialRaid => 1.0,
+        MissionId::UrbanWarfare => 1.2,
+        MissionId::GovernmentResponse => 1.4,
+        MissionId::Resolution => 1.6,
+    };
+    
+    // Adaptive difficulty: make it easier if player is struggling
+    let adaptive_modifier = if ai_director.adaptive_difficulty {
+        if ai_director.player_performance < 0.3 {
+            0.7 // Reduce difficulty
+        } else if ai_director.player_performance > 0.8 {
+            1.3 // Increase difficulty  
+        } else {
+            1.0
+        }
+    } else {
+        1.0
+    };
+    
+    ai_director.intensity_level = base_difficulty * mission_difficulty * adaptive_modifier;
+    
+    // Dynamic reinforcement spawning based on intensity
+    if ai_director.last_spawn_time > 45.0 && ai_director.intensity_level > 1.2 {
+        // Spawn additional military units if intensity is high
+        let spawn_count = (ai_director.intensity_level * 2.0) as u32;
+        
+        for i in 0..spawn_count.min(3) {
+            let spawn_pos = Vec3::new(
+                200.0 + i as f32 * 50.0,
+                thread_rng().gen_range(-100.0..100.0),
+                0.0,
+            );
+            
+            let unit_type = if thread_rng().gen_bool(0.3) {
+                UnitType::SpecialForces
+            } else {
+                UnitType::Soldier  
+            };
+            
+            spawn_unit(&mut commands, unit_type, Faction::Military, spawn_pos, &game_assets);
+        }
+        
+        play_tactical_sound("radio", &format!("AI Director: Intensity level {:.1} - {} reinforcements deployed", ai_director.intensity_level, spawn_count));
+        ai_director.last_spawn_time = 0.0;
     }
 }
 
@@ -1773,6 +1995,30 @@ fn handle_input(
             info!("⚠️ No units selected for aggressive mode!");
         }
     }
+    
+    // Mission and difficulty controls
+    if input.just_pressed(KeyCode::F2) {
+        game_state.campaign_progress.difficulty_level = match game_state.campaign_progress.difficulty_level {
+            DifficultyLevel::Recruit => DifficultyLevel::Veteran,
+            DifficultyLevel::Veteran => DifficultyLevel::Elite,
+            DifficultyLevel::Elite => DifficultyLevel::Recruit,
+        };
+        play_tactical_sound("radio", &format!("Difficulty changed to {:?}", game_state.campaign_progress.difficulty_level));
+        info!("⚙️ Difficulty set to: {:?}", game_state.campaign_progress.difficulty_level);
+    }
+    
+    if input.just_pressed(KeyCode::F3) {
+        // Debug: skip to next mission
+        let next_mission = match game_state.campaign_progress.current_mission {
+            MissionId::InitialRaid => MissionId::UrbanWarfare,
+            MissionId::UrbanWarfare => MissionId::GovernmentResponse,
+            MissionId::GovernmentResponse => MissionId::Resolution,
+            MissionId::Resolution => MissionId::InitialRaid, // Loop back
+        };
+        
+        complete_mission(&mut game_state, game_state.campaign_progress.current_mission.clone());
+        start_next_mission(&mut game_state, next_mission);
+    }
 
     if input.just_pressed(KeyCode::Escape) {
         info!("🔍 DEBUG: ESC key pressed manually by user");
@@ -1782,6 +2028,36 @@ fn handle_input(
         app_exit_events.send(bevy::app::AppExit);
     }
     
+    // Save/Load system
+    if input.just_pressed(KeyCode::F5) {
+        match save_game(&game_state) {
+            Ok(()) => {
+                play_tactical_sound("radio", "Game saved successfully!");
+                info!("💾 Game saved to culiacan_save.json");
+            },
+            Err(e) => {
+                info!("❌ Failed to save game: {}", e);
+            }
+        }
+    }
+    
+    if input.just_pressed(KeyCode::F9) {
+        match load_game() {
+            Ok(loaded_state) => {
+                *game_state = loaded_state;
+                play_tactical_sound("radio", "Game loaded successfully!");
+                info!("📁 Game loaded from culiacan_save.json");
+                info!("📊 Progress: Mission {:?}, Score: {}, Wave: {}", 
+                      game_state.campaign_progress.current_mission,
+                      game_state.cartel_score,
+                      game_state.current_wave);
+            },
+            Err(e) => {
+                info!("❌ Failed to load game: {}", e);
+            }
+        }
+    }
+
     // Debug keys
     if input.just_pressed(KeyCode::F1) {
         info!("🎮 ENHANCED CONTROLS:");
@@ -1793,9 +2069,17 @@ fn handle_input(
         info!("R - Call reinforcements with arrival particles");
         info!("Q - Defensive stance with blue aura effects");
         info!("E - Aggressive mode with fire particle effects");
+        info!("F5 - Quick save game");
+        info!("F9 - Load saved game");
+        info!("F2 - Change difficulty (Recruit/Veteran/Elite)");
+        info!("F3 - Skip to next mission (debug)");
         info!("ESC - End simulation");
         info!("F1 - Show this help");
         info!("📊 Interface: Health bars, minimap, damage indicators, selection circles");
         info!("🎨 Effects: Particle systems, combat feedback, tactical auras");
+        info!("🎯 Campaign: {} missions, Current: {:?}, Difficulty: {:?}", 
+              game_state.campaign_progress.completed_missions.len() + 1,
+              game_state.campaign_progress.current_mission,
+              game_state.campaign_progress.difficulty_level);
     }
 }
