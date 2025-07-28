@@ -208,7 +208,9 @@ fn main() {
         }))
         .add_plugins(KiraAudioPlugin)
         .init_resource::<GameState>()
-        .add_systems(Startup, (setup_assets, setup_ui, setup_game).chain())
+        .add_systems(Startup, setup_assets)
+        .add_systems(Startup, setup_ui.after(setup_assets))
+        .add_systems(Startup, setup_game.after(setup_assets))
         .add_systems(Update, (
             wave_spawner_system,
             unit_ai_system,
