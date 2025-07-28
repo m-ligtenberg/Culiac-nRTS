@@ -61,13 +61,53 @@ struct Unit {
     experience: u32,
     kills: u32,
     veterancy_level: VeterancyLevel,
+    equipment: Equipment,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 enum VeterancyLevel {
     Recruit,    // 0-2 kills
     Veteran,    // 3-5 kills  
     Elite,      // 6+ kills
+}
+
+#[derive(Component, Clone, Serialize, Deserialize)]
+struct Equipment {
+    weapon: WeaponType,
+    armor: ArmorType,
+    upgrades: Vec<UpgradeType>,
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+enum WeaponType {
+    // Cartel weapons
+    BasicRifle,
+    AssaultRifle,
+    HeavyMachineGun,
+    RPG,
+    // Military weapons  
+    StandardIssue,
+    TacticalRifle,
+    SniperRifle,
+    VehicleWeapons,
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+enum ArmorType {
+    None,
+    LightVest,
+    TacticalVest,
+    HeavyArmor,
+    VehicleArmor,
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+enum UpgradeType {
+    ScopedSight,      // +25% range
+    ExtendedMag,      // +33% damage per burst
+    ReinforcedArmor,  // +20% health
+    CombatStims,      // +15% speed
+    RadioComms,       // Coordination bonuses
 }
 
 #[derive(Component)]
@@ -673,6 +713,98 @@ fn spawn_unit(
             0..=2 => VeterancyLevel::Recruit,
             3..=5 => VeterancyLevel::Veteran,
             _ => VeterancyLevel::Elite,
+        }
+    }
+    
+    // Calculate equipment bonuses
+    fn get_equipment_bonuses(equipment: &Equipment) -> (f32, f32, f32, f32) {
+        let mut damage_bonus = 1.0;
+        let mut health_bonus = 1.0;
+        let mut range_bonus = 1.0;
+        let mut speed_bonus = 1.0;
+        
+        // Weapon bonuses
+        match equipment.weapon {
+            WeaponType::AssaultRifle | WeaponType::TacticalRifle => damage_bonus *= 1.25,
+            WeaponType::HeavyMachineGun | WeaponType::SniperRifle => {
+                damage_bonus *= 1.5;
+                range_bonus *= 1.3;
+            },
+            WeaponType::RPG | WeaponType::VehicleWeapons => {
+                damage_bonus *= 2.0;
+                range_bonus *= 1.5;
+            },
+            _ => {},
+        }
+        
+        // Armor bonuses
+        match equipment.armor {
+            ArmorType::LightVest => health_bonus *= 1.15,
+            ArmorType::TacticalVest => {
+                health_bonus *= 1.3;
+                speed_bonus *= 0.95; // Slight speed penalty
+            },
+            ArmorType::HeavyArmor => {
+                health_bonus *= 1.5;
+                speed_bonus *= 0.8; // Heavier speed penalty
+            },
+            ArmorType::VehicleArmor => {
+                health_bonus *= 2.0;
+                speed_bonus *= 0.7;
+            },
+            _ => {},
+        }
+        
+        // Upgrade bonuses
+        for upgrade in &equipment.upgrades {
+            match upgrade {
+                UpgradeType::ScopedSight => range_bonus *= 1.25,
+                UpgradeType::ExtendedMag => damage_bonus *= 1.33,
+                UpgradeType::ReinforcedArmor => health_bonus *= 1.2,
+                UpgradeType::CombatStims => speed_bonus *= 1.15,
+                UpgradeType::RadioComms => {
+                    // Coordination bonus - could affect nearby units
+                    damage_bonus *= 1.1;
+                },
+            }
+        }
+        
+        (damage_bonus, health_bonus, range_bonus, speed_bonus)
+    }
+    
+    // Get default equipment for unit type and faction
+    fn get_default_equipment(unit_type: &UnitType, faction: &Faction) -> Equipment {
+        match (unit_type, faction) {
+            (UnitType::Sicario, Faction::Cartel) => Equipment {
+                weapon: WeaponType::BasicRifle,
+                armor: ArmorType::None,
+                upgrades: vec![],
+            },
+            (UnitType::Enforcer, Faction::Cartel) => Equipment {
+                weapon: WeaponType::AssaultRifle,
+                armor: ArmorType::LightVest,
+                upgrades: vec![],
+            },
+            (UnitType::Soldier, Faction::Military) => Equipment {
+                weapon: WeaponType::StandardIssue,
+                armor: ArmorType::TacticalVest,
+                upgrades: vec![],
+            },
+            (UnitType::SpecialForces, Faction::Military) => Equipment {
+                weapon: WeaponType::TacticalRifle,
+                armor: ArmorType::HeavyArmor,
+                upgrades: vec![UpgradeType::ScopedSight],
+            },
+            (UnitType::Vehicle, Faction::Military) => Equipment {
+                weapon: WeaponType::VehicleWeapons,
+                armor: ArmorType::VehicleArmor,
+                upgrades: vec![UpgradeType::RadioComms],
+            },
+            _ => Equipment {
+                weapon: WeaponType::BasicRifle,
+                armor: ArmorType::None,
+                upgrades: vec![],
+            },
         }
     }
     
@@ -1823,6 +1955,7 @@ fn handle_input(
                 experience: 0,
                 kills: 0,
                 veterancy_level: VeterancyLevel::Recruit,
+                equipment: get_default_equipment(&UnitType::Roadblock, &Faction::Cartel),
             },
         )).id();
         
@@ -2019,6 +2152,62 @@ fn handle_input(
         complete_mission(&mut game_state, game_state.campaign_progress.current_mission.clone());
         start_next_mission(&mut game_state, next_mission);
     }
+    
+    // Unit upgrade system
+    if input.just_pressed(KeyCode::U) {
+        let selected_count = selected_query.iter().count();
+        if selected_count > 0 {
+            // Upgrade selected units if player has enough score
+            let upgrade_cost = 50;
+            if game_state.cartel_score >= upgrade_cost {
+                for (entity, transform, mut unit, _) in unit_query.iter_mut() {
+                    if selected_query.get(entity).is_ok() {
+                        // Add random upgrade
+                        let available_upgrades = vec![
+                            UpgradeType::ScopedSight,
+                            UpgradeType::ExtendedMag,
+                            UpgradeType::ReinforcedArmor,
+                            UpgradeType::CombatStims,
+                            UpgradeType::RadioComms,
+                        ];
+                        
+                        let random_upgrade = available_upgrades[thread_rng().gen_range(0..available_upgrades.len())].clone();
+                        
+                        if !unit.equipment.upgrades.contains(&random_upgrade) {
+                            unit.equipment.upgrades.push(random_upgrade.clone());
+                            
+                            // Spawn upgrade particles
+                            for _ in 0..6 {
+                                commands.spawn((
+                                    SpriteBundle {
+                                        sprite: Sprite {
+                                            color: Color::rgba(0.0, 1.0, 1.0, 0.9), // Cyan upgrade effect
+                                            custom_size: Some(Vec2::new(5.0, 5.0)),
+                                            ..default()
+                                        },
+                                        transform: Transform::from_translation(transform.translation + Vec3::new(0.0, 30.0, 2.0)),
+                                        ..default()
+                                    },
+                                    ParticleEffect {
+                                        lifetime: Timer::new(Duration::from_millis(2000), TimerMode::Once),
+                                        velocity: Vec3::new(0.0, 40.0, 0.0),
+                                    },
+                                ));
+                            }
+                            
+                            play_tactical_sound("construction", &format!("Unit upgraded with {:?}!", random_upgrade));
+                            info!("⬆️ Unit upgraded with {:?}! Upgrades: {}", random_upgrade, unit.equipment.upgrades.len());
+                        }
+                    }
+                }
+                game_state.cartel_score -= upgrade_cost;
+            } else {
+                info!("💰 Insufficient funds for upgrades! Need {} score.", upgrade_cost);
+            }
+        } else {
+            info!("⚠️ No units selected for upgrade!");
+        }
+    }
 
     if input.just_pressed(KeyCode::Escape) {
         info!("🔍 DEBUG: ESC key pressed manually by user");
@@ -2073,6 +2262,7 @@ fn handle_input(
         info!("F9 - Load saved game");
         info!("F2 - Change difficulty (Recruit/Veteran/Elite)");
         info!("F3 - Skip to next mission (debug)");
+        info!("U - Upgrade selected units (costs 50 score)");
         info!("ESC - End simulation");
         info!("F1 - Show this help");
         info!("📊 Interface: Health bars, minimap, damage indicators, selection circles");
