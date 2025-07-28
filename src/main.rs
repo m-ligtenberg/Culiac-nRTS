@@ -129,15 +129,8 @@ enum ObjectiveType {
 
 #[derive(Resource)]
 struct GameAssets {
-    // Unit sprites
-    sicario_sprite: Handle<Image>,
-    enforcer_sprite: Handle<Image>,
-    ovidio_sprite: Handle<Image>,
-    soldier_sprite: Handle<Image>,
-    special_forces_sprite: Handle<Image>,
-    vehicle_sprite: Handle<Image>,
-    roadblock_sprite: Handle<Image>,
-    safehouse_sprite: Handle<Image>,
+    // Tileset and atlas handles
+    tileset_atlas: Handle<TextureAtlas>,
     
     // UI textures
     health_bar_bg: Handle<Image>,
@@ -150,6 +143,19 @@ struct GameAssets {
     gunshot_sound: Handle<KiraAudioSource>,
     explosion_sound: Handle<KiraAudioSource>,
     radio_chatter: Handle<KiraAudioSource>,
+}
+
+// Sprite indices in the tileset for each unit type
+#[derive(Resource)]
+struct SpriteIndices {
+    sicario: usize,
+    enforcer: usize,
+    ovidio: usize,
+    soldier: usize,
+    special_forces: usize,
+    vehicle: usize,
+    roadblock: usize,
+    safehouse: usize,
 }
 
 #[derive(Resource)]
@@ -220,20 +226,27 @@ fn main() {
 
 // ==================== SETUP SYSTEMS ====================
 
-fn setup_assets(mut commands: Commands, _asset_server: Res<AssetServer>) {
-    // For now, we'll create colored sprites programmatically
-    // Later these can be replaced with actual sprite files
+fn setup_assets(
+    mut commands: Commands, 
+    asset_server: Res<AssetServer>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>
+) {
+    // Load the tileset image
+    let tileset_handle = asset_server.load("sprites/tileset_48x48.png");
+    
+    // Create texture atlas for 48x48 sprites (Bevy 0.12 style)
+    let texture_atlas = TextureAtlas::from_grid(
+        tileset_handle,
+        Vec2::splat(48.0), // tile size
+        32, // columns (adjust based on actual tileset)
+        32, // rows (adjust based on actual tileset)
+        None, // padding
+        None  // offset
+    );
+    let atlas_handle = texture_atlases.add(texture_atlas);
     
     let assets = GameAssets {
-        // These would be actual sprite files in a full implementation
-        sicario_sprite: Handle::default(),
-        enforcer_sprite: Handle::default(),
-        ovidio_sprite: Handle::default(),
-        soldier_sprite: Handle::default(),
-        special_forces_sprite: Handle::default(),
-        vehicle_sprite: Handle::default(),
-        roadblock_sprite: Handle::default(),
-        safehouse_sprite: Handle::default(),
+        tileset_atlas: atlas_handle,
         health_bar_bg: Handle::default(),
         health_bar_fill: Handle::default(),
         main_font: Handle::default(), // Use default font for now
@@ -242,7 +255,21 @@ fn setup_assets(mut commands: Commands, _asset_server: Res<AssetServer>) {
         radio_chatter: Handle::default(),
     };
     
+    // Define sprite indices based on visual inspection of tileset
+    // These indices correspond to positions in the tileset grid
+    let sprite_indices = SpriteIndices {
+        sicario: 100,      // Generic person/civilian
+        enforcer: 101,     // Tougher-looking character
+        ovidio: 102,       // VIP character
+        soldier: 150,      // Military/police character
+        special_forces: 151, // Elite military character
+        vehicle: 200,      // Car/vehicle sprite
+        roadblock: 250,    // Barrier/obstacle sprite
+        safehouse: 300,    // Building/structure sprite
+    };
+    
     commands.insert_resource(assets);
+    commands.insert_resource(sprite_indices);
 }
 
 fn setup_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
@@ -381,7 +408,11 @@ fn setup_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
         });
 }
 
-fn setup_game(mut commands: Commands, _assets: Option<Res<GameAssets>>) {
+fn setup_game(
+    mut commands: Commands, 
+    game_assets: Res<GameAssets>,
+    sprite_indices: Res<SpriteIndices>
+) {
     info!("🎮 Battle of Culiacán - October 17, 2019");
     info!("🏛️  Government forces attempt to capture Ovidio Guzmán López");
     info!("⚔️  Sinaloa Cartel prepares defensive operations");
@@ -437,12 +468,13 @@ fn setup_game(mut commands: Commands, _assets: Option<Res<GameAssets>>) {
     }
     
     // Spawn Ovidio (High Value Target) in safehouse
-    spawn_ovidio(&mut commands, Vec3::new(-300.0, 200.0, 0.0));
+    spawn_ovidio(&mut commands, Vec3::new(-300.0, 200.0, 0.0), &game_assets, &sprite_indices);
     
     // Spawn initial cartel defenders
     for i in 0..3 {
         spawn_unit(&mut commands, UnitType::Sicario, Faction::Cartel, 
-                   Vec3::new(-250.0 + i as f32 * 50.0, 150.0, 0.0));
+                   Vec3::new(-250.0 + i as f32 * 50.0, 150.0, 0.0), 
+                   &game_assets, &sprite_indices);
     }
     
     // Spawn safehouse objective with enhanced graphics
@@ -493,16 +525,21 @@ fn setup_game(mut commands: Commands, _assets: Option<Res<GameAssets>>) {
     info!("📱 Controls: SPACE=Roadblock, R=Reinforcements, ESC=Exit");
 }
 
-fn spawn_ovidio(commands: &mut Commands, position: Vec3) {
+fn spawn_ovidio(
+    commands: &mut Commands, 
+    position: Vec3, 
+    game_assets: &Res<GameAssets>,
+    sprite_indices: &Res<SpriteIndices>
+) {
     let entity = commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::rgb(1.0, 0.8, 0.0), // Golden color for HVT
-                custom_size: Some(Vec2::new(30.0, 30.0)),
+        SpriteSheetBundle {
+            texture_atlas: game_assets.tileset_atlas.clone(),
+            sprite: TextureAtlasSprite {
+                index: sprite_indices.ovidio,
+                color: Color::rgb(1.0, 0.8, 0.0), // Golden tint for VIP
                 ..default()
             },
             transform: Transform::from_translation(world_to_iso(position)),
-            // Remove rotation for visibility
             ..default()
         },
         Unit {
@@ -540,33 +577,44 @@ fn spawn_ovidio(commands: &mut Commands, position: Vec3) {
     spawn_health_bar(commands, entity, position);
 }
 
-fn spawn_unit(commands: &mut Commands, unit_type: UnitType, faction: Faction, position: Vec3) {
-    // Get unit color, size, health, damage, range, speed based on type and faction
-    let (color, size, _emoji, health, damage, range, speed) = match (&unit_type, &faction) {
-        (UnitType::Sicario, Faction::Cartel) => 
-            (Color::rgb(0.9, 0.2, 0.2), Vec2::new(18.0, 18.0), "🔫", 80.0, 25.0, 120.0, 100.0),
-        (UnitType::Enforcer, Faction::Cartel) => 
-            (Color::rgb(0.7, 0.1, 0.1), Vec2::new(24.0, 24.0), "⚔️", 120.0, 40.0, 150.0, 80.0),
-        (UnitType::Soldier, Faction::Military) => 
-            (Color::rgb(0.2, 0.6, 0.2), Vec2::new(18.0, 18.0), "🪖", 100.0, 30.0, 140.0, 90.0),
-        (UnitType::SpecialForces, Faction::Military) => 
-            (Color::rgb(0.1, 0.8, 0.1), Vec2::new(22.0, 22.0), "🎯", 140.0, 50.0, 180.0, 110.0),
-        (UnitType::Vehicle, Faction::Military) => 
-            (Color::rgb(0.3, 0.7, 0.3), Vec2::new(35.0, 25.0), "🚗", 200.0, 60.0, 200.0, 70.0),
-        (UnitType::Roadblock, Faction::Cartel) => 
-            (Color::rgb(0.7, 0.4, 0.1), Vec2::new(30.0, 15.0), "🚧", 75.0, 0.0, 0.0, 0.0),
-        _ => (Color::GRAY, Vec2::new(18.0, 18.0), "❓", 100.0, 20.0, 100.0, 80.0),
+fn spawn_unit(
+    commands: &mut Commands, 
+    unit_type: UnitType, 
+    faction: Faction, 
+    position: Vec3,
+    game_assets: &Res<GameAssets>,
+    sprite_indices: &Res<SpriteIndices>
+) {
+    // Get unit health, damage, range, speed based on type and faction
+    let (health, damage, range, speed) = match (&unit_type, &faction) {
+        (UnitType::Sicario, Faction::Cartel) => (80.0, 25.0, 120.0, 100.0),
+        (UnitType::Enforcer, Faction::Cartel) => (120.0, 40.0, 150.0, 80.0),
+        (UnitType::Soldier, Faction::Military) => (100.0, 30.0, 140.0, 90.0),
+        (UnitType::SpecialForces, Faction::Military) => (140.0, 50.0, 180.0, 110.0),
+        (UnitType::Vehicle, Faction::Military) => (200.0, 60.0, 200.0, 70.0),
+        (UnitType::Roadblock, Faction::Cartel) => (75.0, 0.0, 0.0, 0.0),
+        _ => (100.0, 20.0, 100.0, 80.0),
+    };
+    
+    // Get sprite index for unit type
+    let sprite_index = match unit_type {
+        UnitType::Sicario => sprite_indices.sicario,
+        UnitType::Enforcer => sprite_indices.enforcer,
+        UnitType::Soldier => sprite_indices.soldier,
+        UnitType::SpecialForces => sprite_indices.special_forces,
+        UnitType::Vehicle => sprite_indices.vehicle,
+        UnitType::Roadblock => sprite_indices.roadblock,
+        _ => sprite_indices.sicario, // fallback
     };
     
     let entity = commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color,
-                custom_size: Some(size),
+        SpriteSheetBundle {
+            texture_atlas: game_assets.tileset_atlas.clone(),
+            sprite: TextureAtlasSprite {
+                index: sprite_index,
                 ..default()
             },
             transform: Transform::from_translation(world_to_iso(position)),
-            // Remove diamond rotation for better visibility
             ..default()
         },
         Unit {
@@ -673,6 +721,8 @@ fn wave_spawner_system(
     mut commands: Commands,
     mut wave_query: Query<&mut WaveSpawner>,
     mut game_state: ResMut<GameState>,
+    game_assets: Res<GameAssets>,
+    sprite_indices: Res<SpriteIndices>,
 ) {
     for mut spawner in wave_query.iter_mut() {
         spawner.next_wave_timer.tick(time.delta());
@@ -716,7 +766,7 @@ fn wave_spawner_system(
                     _ => if thread_rng().gen_bool(0.4) { UnitType::Vehicle } else { UnitType::SpecialForces },
                 };
                 
-                spawn_unit(&mut commands, unit_type, Faction::Military, entry_point + offset);
+                spawn_unit(&mut commands, unit_type, Faction::Military, entry_point + offset, &game_assets, &sprite_indices);
             }
             
             // Increase difficulty for next wave
@@ -1184,6 +1234,8 @@ fn handle_input(
     input: Res<Input<KeyCode>>,
     mut commands: Commands,
     mut game_state: ResMut<GameState>,
+    game_assets: Res<GameAssets>,
+    sprite_indices: Res<SpriteIndices>,
 ) {
     if input.just_pressed(KeyCode::Space) {
         // Deploy roadblock with enhanced visuals
@@ -1194,14 +1246,14 @@ fn handle_input(
         );
         
         let _entity = commands.spawn((
-            SpriteBundle {
-                sprite: Sprite {
-                    color: Color::rgb(0.7, 0.4, 0.1),
-                    custom_size: Some(Vec2::new(80.0, 30.0)),
+            SpriteSheetBundle {
+                texture_atlas: game_assets.tileset_atlas.clone(),
+                sprite: TextureAtlasSprite {
+                    index: sprite_indices.roadblock,
+                    color: Color::rgb(0.8, 0.6, 0.3), // Slightly brighter tint for visibility
                     ..default()
                 },
                 transform: Transform::from_translation(world_to_iso(position)),
-                // Remove rotation for clarity
                 ..default()
             },
             Unit {
@@ -1270,7 +1322,7 @@ fn handle_input(
         
         for (i, position) in spawn_positions.iter().enumerate() {
             let unit_type = if i == 0 { UnitType::Enforcer } else { UnitType::Sicario };
-            spawn_unit(&mut commands, unit_type, Faction::Cartel, *position);
+            spawn_unit(&mut commands, unit_type, Faction::Cartel, *position, &game_assets, &sprite_indices);
             
             // Spawn arrival particles
             for _ in 0..8 {
