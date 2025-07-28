@@ -7,6 +7,7 @@
 // =====================================================================
 
 use bevy::prelude::*;
+use bevy::ecs::schedule::common_conditions::{resource_exists, run_once};
 use bevy_kira_audio::prelude::{Audio as KiraAudio, AudioSource as KiraAudioSource, AudioPlugin as KiraAudioPlugin};
 use rand::{thread_rng, Rng};
 use std::time::Duration;
@@ -208,9 +209,8 @@ fn main() {
         }))
         .add_plugins(KiraAudioPlugin)
         .init_resource::<GameState>()
-        .add_systems(Startup, setup_assets)
-        .add_systems(Startup, setup_ui.after(setup_assets))
-        .add_systems(Startup, setup_game.after(setup_assets))
+        .add_systems(Startup, (setup_assets, setup_ui))
+        .add_systems(Update, setup_game.run_if(resource_exists::<GameAssets>).run_if(run_once()))
         .add_systems(Update, (
             wave_spawner_system,
             unit_ai_system,
