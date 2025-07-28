@@ -237,11 +237,12 @@ fn setup_assets(
     let tileset_handle = asset_server.load("sprites/tileset_48x48.png");
     
     // Create texture atlas for 48x48 sprites (Bevy 0.12 style)
+    // Based on the tileset image, let's try a smaller grid first
     let texture_atlas = TextureAtlas::from_grid(
         tileset_handle,
         Vec2::splat(48.0), // tile size
-        32, // columns (adjust based on actual tileset)
-        32, // rows (adjust based on actual tileset)
+        16, // columns (reduced from 32)
+        16, // rows (reduced from 32)
         None, // padding
         None  // offset
     );
@@ -257,17 +258,17 @@ fn setup_assets(
         radio_chatter: Handle::default(),
     };
     
-    // Define sprite indices based on visual inspection of tileset
-    // These indices correspond to positions in the tileset grid
+    // Define sprite indices based on 16x16 grid layout
+    // Start with simple indices from top-left of tileset
     let sprite_indices = SpriteIndices {
-        sicario: 100,      // Generic person/civilian
-        enforcer: 101,     // Tougher-looking character
-        ovidio: 102,       // VIP character
-        soldier: 150,      // Military/police character
-        special_forces: 151, // Elite military character
-        vehicle: 200,      // Car/vehicle sprite
-        roadblock: 250,    // Barrier/obstacle sprite
-        safehouse: 300,    // Building/structure sprite
+        sicario: 0,        // First sprite (top-left)
+        enforcer: 1,       // Second sprite  
+        ovidio: 2,         // Third sprite
+        soldier: 16,       // Second row, first sprite (16 columns)
+        special_forces: 17, // Second row, second sprite
+        vehicle: 32,       // Third row, first sprite
+        roadblock: 48,     // Fourth row, first sprite
+        safehouse: 64,     // Fifth row, first sprite
     };
     
     commands.insert_resource(assets);
