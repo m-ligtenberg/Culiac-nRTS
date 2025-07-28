@@ -56,6 +56,16 @@ struct Unit {
     movement_speed: f32,
     target: Option<Entity>,
     attack_cooldown: Timer,
+    experience: u32,
+    kills: u32,
+    veterancy_level: VeterancyLevel,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+enum VeterancyLevel {
+    Recruit,    // 0-2 kills
+    Veteran,    // 3-5 kills  
+    Elite,      // 6+ kills
 }
 
 #[derive(Component)]
@@ -243,6 +253,7 @@ fn main() {
             camera_control_system,
             unit_selection_system,
             selection_indicator_system,
+            minimap_system,
             wave_spawner_system,
             unit_ai_system,
             movement_system,
@@ -311,6 +322,25 @@ fn setup_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
             min_zoom: 0.5,
             max_zoom: 3.0,
         },
+    ));
+    
+    // Minimap
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                right: Val::Px(20.0),
+                top: Val::Px(20.0),
+                width: Val::Px(200.0),
+                height: Val::Px(150.0),
+                border: UiRect::all(Val::Px(2.0)),
+                ..default()
+            },
+            background_color: BackgroundColor(Color::rgba(0.0, 0.0, 0.0, 0.7)),
+            border_color: BorderColor(Color::WHITE),
+            ..default()
+        },
+        MiniMap,
     ));
     
     // Main UI Container
@@ -586,6 +616,9 @@ fn spawn_ovidio(
             movement_speed: 60.0,
             target: None,
             attack_cooldown: Timer::new(Duration::from_secs(1), TimerMode::Repeating),
+            experience: 0,
+            kills: 0,
+            veterancy_level: VeterancyLevel::Recruit,
         },
         Movement {
             target_position: None,
@@ -629,6 +662,15 @@ fn spawn_unit(
         _ => (100.0, 20.0, 100.0, 80.0),
     };
     
+    // Determine veterancy level based on experience/kills
+    fn get_veterancy_level(kills: u32) -> VeterancyLevel {
+        match kills {
+            0..=2 => VeterancyLevel::Recruit,
+            3..=5 => VeterancyLevel::Veteran,
+            _ => VeterancyLevel::Elite,
+        }
+    }
+    
     // Get sprite handle for unit type
     let sprite_handle = match unit_type {
         UnitType::Sicario => game_assets.sicario_sprite.clone(),
@@ -660,6 +702,9 @@ fn spawn_unit(
             movement_speed: speed,
             target: None,
             attack_cooldown: Timer::new(Duration::from_millis(800), TimerMode::Repeating),
+            experience: 0,
+            kills: 0,
+            veterancy_level: VeterancyLevel::Recruit,
         },
         Movement {
             target_position: None,
@@ -1398,6 +1443,80 @@ fn selection_indicator_system(
 #[derive(Component)]
 struct SelectionIndicator;
 
+#[derive(Component)]
+struct MiniMap;
+
+#[derive(Component)]
+struct MiniMapIcon {
+    unit_type: UnitType,
+    faction: Faction,
+}
+
+// ==================== MINIMAP SYSTEM ====================
+
+fn minimap_system(
+    mut commands: Commands,
+    unit_query: Query<(&Transform, &Unit), Without<MiniMapIcon>>,
+    mut minimap_icon_query: Query<(Entity, &mut Style, &MiniMapIcon), (With<MiniMapIcon>, Without<Transform>)>,
+    minimap_query: Query<Entity, With<MiniMap>>,
+) {
+    if let Ok(minimap_entity) = minimap_query.get_single() {
+        // Clear old icons
+        for (entity, _, _) in minimap_icon_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        
+        // Add new icons for all units
+        for (transform, unit) in unit_query.iter() {
+            let world_pos = transform.translation;
+            
+            // Convert world position to minimap position (scale down)
+            let minimap_scale = 0.1; // Scale factor for minimap
+            let minimap_x = (world_pos.x * minimap_scale + 100.0).clamp(0.0, 190.0);
+            let minimap_y = (150.0 - (world_pos.y * minimap_scale + 75.0)).clamp(0.0, 140.0);
+            
+            let icon_color = match unit.faction {
+                Faction::Cartel => match unit.unit_type {
+                    UnitType::Ovidio => Color::GOLD,
+                    UnitType::Enforcer => Color::ORANGE_RED,
+                    _ => Color::RED,
+                },
+                Faction::Military => Color::GREEN,
+                _ => Color::WHITE,
+            };
+            
+            let icon_size = match unit.unit_type {
+                UnitType::Ovidio => 6.0,
+                UnitType::Vehicle => 5.0,
+                UnitType::Enforcer | UnitType::SpecialForces => 4.0,
+                _ => 3.0,
+            };
+            
+            // Spawn minimap icon as child of minimap
+            let icon_entity = commands.spawn((
+                NodeBundle {
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(minimap_x),
+                        top: Val::Px(minimap_y),
+                        width: Val::Px(icon_size),
+                        height: Val::Px(icon_size),
+                        ..default()
+                    },
+                    background_color: BackgroundColor(icon_color),
+                    ..default()
+                },
+                MiniMapIcon {
+                    unit_type: unit.unit_type.clone(),
+                    faction: unit.faction.clone(),
+                },
+            )).id();
+            
+            commands.entity(minimap_entity).add_child(icon_entity);
+        }
+    }
+}
+
 fn handle_input(
     input: Res<Input<KeyCode>>,
     mouse_button_input: Res<Input<MouseButton>>,
@@ -1479,6 +1598,9 @@ fn handle_input(
                 movement_speed: 0.0,
                 target: None,
                 attack_cooldown: Timer::new(Duration::from_secs(1), TimerMode::Repeating),
+                experience: 0,
+                kills: 0,
+                veterancy_level: VeterancyLevel::Recruit,
             },
         )).id();
         
@@ -1571,6 +1693,35 @@ fn handle_input(
     if input.just_pressed(KeyCode::Q) {
         let selected_count = selected_query.iter().count();
         if selected_count > 0 {
+            // Add defensive particle effects for selected units
+            for (entity, transform, unit, _) in unit_query.iter() {
+                if selected_query.get(entity).is_ok() {
+                    // Spawn defensive aura particles
+                    for i in 0..12 {
+                        let angle = i as f32 * std::f32::consts::PI * 2.0 / 12.0;
+                        let radius = 40.0;
+                        let offset = Vec3::new(angle.cos() * radius, angle.sin() * radius, 0.0);
+                        
+                        commands.spawn((
+                            SpriteBundle {
+                                sprite: Sprite {
+                                    color: Color::rgba(0.2, 0.5, 1.0, 0.8), // Blue defensive aura
+                                    custom_size: Some(Vec2::new(4.0, 4.0)),
+                                    ..default()
+                                },
+                                transform: Transform::from_translation(transform.translation + offset),
+                                ..default()
+                            },
+                            ParticleEffect {
+                                lifetime: Timer::new(Duration::from_millis(1500), TimerMode::Once),
+                                velocity: Vec3::new(0.0, 20.0, 0.0),
+                            },
+                        ));
+                    }
+                }
+            }
+            
+            play_tactical_sound("radio", &format!("Defensive positions activated for {} units!", selected_count));
             info!("🛡️ {} selected units take defensive stance! +25% armor for 30 seconds.", selected_count);
             game_state.cartel_score += selected_count as u32 * 2;
         } else {
@@ -1581,6 +1732,41 @@ fn handle_input(
     if input.just_pressed(KeyCode::E) {
         let selected_count = selected_query.iter().count();
         if selected_count > 0 {
+            // Add aggressive particle effects for selected units
+            for (entity, transform, unit, _) in unit_query.iter() {
+                if selected_query.get(entity).is_ok() {
+                    // Spawn aggressive mode fire particles
+                    for _ in 0..8 {
+                        let random_offset = Vec3::new(
+                            thread_rng().gen_range(-25.0..25.0),
+                            thread_rng().gen_range(-25.0..25.0),
+                            2.0,
+                        );
+                        
+                        commands.spawn((
+                            SpriteBundle {
+                                sprite: Sprite {
+                                    color: Color::rgba(1.0, 0.3, 0.1, 0.9), // Red/orange aggressive fire
+                                    custom_size: Some(Vec2::new(6.0, 6.0)),
+                                    ..default()
+                                },
+                                transform: Transform::from_translation(transform.translation + random_offset),
+                                ..default()
+                            },
+                            ParticleEffect {
+                                lifetime: Timer::new(Duration::from_millis(1200), TimerMode::Once),
+                                velocity: Vec3::new(
+                                    thread_rng().gen_range(-30.0..30.0),
+                                    thread_rng().gen_range(30.0..60.0),
+                                    0.0,
+                                ),
+                            },
+                        ));
+                    }
+                }
+            }
+            
+            play_tactical_sound("gunfire", &format!("Aggressive assault mode - {} units ready to engage!", selected_count));
             info!("⚔️ {} selected units enter aggressive mode! +50% damage for 20 seconds.", selected_count);
             game_state.cartel_score += selected_count as u32 * 3;
         } else {
@@ -1599,11 +1785,17 @@ fn handle_input(
     // Debug keys
     if input.just_pressed(KeyCode::F1) {
         info!("🎮 ENHANCED CONTROLS:");
+        info!("WASD/Arrows - Pan camera around battlefield");
+        info!("Mouse Wheel - Zoom in/out for tactical view");
+        info!("Left Click - Select units (Shift+Click for multi-select)");
+        info!("Right Click - Move selected units in formation");
         info!("SPACE - Deploy roadblock with construction effects");
-        info!("R - Call reinforcements with arrival particles");  
+        info!("R - Call reinforcements with arrival particles");
+        info!("Q - Defensive stance with blue aura effects");
+        info!("E - Aggressive mode with fire particle effects");
         info!("ESC - End simulation");
         info!("F1 - Show this help");
-        info!("📊 Graphics: Health bars, damage indicators, particle effects");
-        info!("🎨 Visual: Unit icons, labels, explosion effects");
+        info!("📊 Interface: Health bars, minimap, damage indicators, selection circles");
+        info!("🎨 Effects: Particle systems, combat feedback, tactical auras");
     }
 }

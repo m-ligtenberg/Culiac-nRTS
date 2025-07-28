@@ -233,5 +233,6 @@ This game serves as an educational tool to understand:
 ### **Workflow Recommendations**
 - Commit after every big change & let developer compile and cargo check to save computing power
 - Maintain clean, incremental commits with descriptive messages
+- **Don't mention yourself in commits**
 
 **Current Status**: Fully functional, professional-quality RTS ready for enhancement and expansion. The foundation is solid - focus on features that enhance the educational and gameplay experience while maintaining historical accuracy and technical excellence.
