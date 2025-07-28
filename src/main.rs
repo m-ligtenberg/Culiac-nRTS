@@ -23,8 +23,8 @@ struct IsometricCamera;
 
 // Isometric transformation helper function
 fn world_to_iso(world_pos: Vec3) -> Vec3 {
-    let x = (world_pos.x - world_pos.y) * 0.5; // Less dramatic angle
-    let y = (world_pos.x + world_pos.y) * 0.3; // Flatter perspective  
+    let x = (world_pos.x - world_pos.y) * 0.2; // Much less dramatic angle
+    let y = (world_pos.x + world_pos.y) * 0.1; // Much flatter perspective  
     Vec3::new(x, y, world_pos.z)
 }
 
@@ -252,7 +252,7 @@ fn setup_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
     commands.spawn((
         Camera2dBundle {
             transform: Transform::from_xyz(0.0, 0.0, 999.9)
-                .with_scale(Vec3::splat(1.2)), // Zoom out more to see units
+                .with_scale(Vec3::splat(0.6)), // Zoom in to see units better
             ..default()
         },
         IsometricCamera,
@@ -442,17 +442,17 @@ fn setup_game(
     }
     
     // Spawn Ovidio (High Value Target) in safehouse
-    spawn_ovidio(&mut commands, Vec3::new(-300.0, 200.0, 0.0), &game_assets);
+    spawn_ovidio(&mut commands, Vec3::new(-100.0, 50.0, 0.0), &game_assets);
     
-    // Spawn initial cartel defenders
+    // Spawn initial cartel defenders in a tighter formation
     for i in 0..3 {
         spawn_unit(&mut commands, UnitType::Sicario, Faction::Cartel, 
-                   Vec3::new(-250.0 + i as f32 * 50.0, 150.0, 0.0), 
+                   Vec3::new(-50.0 + i as f32 * 30.0, 20.0, 0.0), 
                    &game_assets);
     }
     
     // Spawn safehouse objective with enhanced graphics
-    let safehouse_pos = Vec3::new(-300.0, 200.0, 0.0);
+    let safehouse_pos = Vec3::new(-100.0, 80.0, 0.0);
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -714,11 +714,11 @@ fn wave_spawner_system(
                 _ => info!("📻 'Command, we're escalating operations!'"),
             }
             
-            // Spawn military units from different entry points
+            // Spawn military units from different entry points (closer to center)
             let entry_points = vec![
-                Vec3::new(600.0, 300.0, 0.0),   // North entry
-                Vec3::new(600.0, 0.0, 0.0),     // East entry  
-                Vec3::new(600.0, -300.0, 0.0),  // South entry
+                Vec3::new(200.0, 100.0, 0.0),   // North entry
+                Vec3::new(200.0, 0.0, 0.0),     // East entry  
+                Vec3::new(200.0, -100.0, 0.0),  // South entry
             ];
             
             for i in 0..units_to_spawn {
@@ -1280,11 +1280,11 @@ fn handle_input(
     }
     
     if input.just_pressed(KeyCode::R) {
-        // Call reinforcements with enhanced spawning
+        // Call reinforcements with enhanced spawning (closer positions)
         let spawn_positions = vec![
-            Vec3::new(-400.0, 200.0, 0.0),
-            Vec3::new(-350.0, 150.0, 0.0),
-            Vec3::new(-400.0, 100.0, 0.0),
+            Vec3::new(-150.0, 80.0, 0.0),
+            Vec3::new(-120.0, 60.0, 0.0),
+            Vec3::new(-150.0, 40.0, 0.0),
         ];
         
         for (i, position) in spawn_positions.iter().enumerate() {
