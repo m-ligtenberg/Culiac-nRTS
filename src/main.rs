@@ -19,7 +19,12 @@ use std::time::Duration;
 // ==================== ISOMETRIC SYSTEM ====================
 
 #[derive(Component)]
-struct IsometricCamera;
+struct IsometricCamera {
+    pan_speed: f32,
+    zoom_speed: f32,
+    min_zoom: f32,
+    max_zoom: f32,
+}
 
 // Isometric transformation helper function
 fn world_to_iso(world_pos: Vec3) -> Vec3 {
@@ -58,6 +63,11 @@ struct HealthBar {
 #[derive(Component)]
 struct DamageIndicator {
     lifetime: Timer,
+}
+
+#[derive(Component)]
+struct Selected {
+    selection_color: Color,
 }
 
 #[derive(Component)]
@@ -207,6 +217,9 @@ fn main() {
         .add_systems(Startup, (setup_assets, setup_ui))
         .add_systems(Update, setup_game.run_if(resource_exists::<GameAssets>()).run_if(not(resource_exists::<GameSetupComplete>())))
         .add_systems(Update, (
+            camera_control_system,
+            unit_selection_system,
+            selection_indicator_system,
             wave_spawner_system,
             unit_ai_system,
             movement_system,
@@ -269,7 +282,12 @@ fn setup_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
                 .with_scale(Vec3::splat(1.5)), // Zoom out more to see the battlefield
             ..default()
         },
-        IsometricCamera,
+        IsometricCamera {
+            pan_speed: 300.0,
+            zoom_speed: 0.1,
+            min_zoom: 0.5,
+            max_zoom: 3.0,
+        },
     ));
     
     // Main UI Container
@@ -1224,13 +1242,154 @@ fn game_phase_system(
     }
 }
 
+// ==================== CAMERA CONTROL SYSTEM ====================
+
+fn camera_control_system(
+    input: Res<Input<KeyCode>>,
+    mut mouse_wheel_events: EventReader<bevy::input::mouse::MouseWheel>,
+    mut camera_query: Query<(&mut Transform, &mut IsometricCamera), With<Camera>>,
+    time: Res<Time>,
+) {
+    for (mut transform, camera) in camera_query.iter_mut() {
+        let mut movement = Vec3::ZERO;
+        
+        // WASD camera movement
+        if input.pressed(KeyCode::W) || input.pressed(KeyCode::Up) {
+            movement.y += camera.pan_speed * time.delta_seconds();
+        }
+        if input.pressed(KeyCode::S) || input.pressed(KeyCode::Down) {
+            movement.y -= camera.pan_speed * time.delta_seconds();
+        }
+        if input.pressed(KeyCode::A) || input.pressed(KeyCode::Left) {
+            movement.x -= camera.pan_speed * time.delta_seconds();
+        }
+        if input.pressed(KeyCode::D) || input.pressed(KeyCode::Right) {
+            movement.x += camera.pan_speed * time.delta_seconds();
+        }
+        
+        transform.translation += movement;
+        
+        // Mouse wheel zoom
+        for wheel_event in mouse_wheel_events.iter() {
+            let zoom_delta = wheel_event.y * camera.zoom_speed;
+            let new_scale = (transform.scale.x - zoom_delta).clamp(camera.min_zoom, camera.max_zoom);
+            transform.scale = Vec3::splat(new_scale);
+        }
+    }
+}
+
+// ==================== UNIT SELECTION SYSTEM ====================
+
+fn unit_selection_system(
+    mut commands: Commands,
+    mouse_button_input: Res<Input<MouseButton>>,
+    windows: Query<&Window>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<IsometricCamera>>,
+    mut unit_query: Query<(Entity, &Transform, &Unit, Option<&Selected>)>,
+) {
+    if !mouse_button_input.just_pressed(MouseButton::Left) {
+        return;
+    }
+    
+    let window = windows.single();
+    let (camera, camera_transform) = camera_query.single();
+    
+    if let Some(cursor_pos) = window.cursor_position() {
+        // Convert screen position to world position
+        if let Some(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
+            let mut closest_unit = None;
+            let mut closest_distance = f32::INFINITY;
+            
+            // Find closest cartel unit to cursor
+            for (entity, transform, unit, selected) in unit_query.iter() {
+                if unit.faction == Faction::Cartel {
+                    let distance = transform.translation.truncate().distance(world_pos);
+                    if distance < 50.0 && distance < closest_distance {
+                        closest_distance = distance;
+                        closest_unit = Some((entity, selected.is_some()));
+                    }
+                }
+            }
+            
+            // Clear all selections first
+            for (entity, _, _, selected) in unit_query.iter() {
+                if selected.is_some() {
+                    commands.entity(entity).remove::<Selected>();
+                }
+            }
+            
+            // Select the closest unit
+            if let Some((entity, _was_selected)) = closest_unit {
+                commands.entity(entity).insert(Selected {
+                    selection_color: Color::rgb(1.0, 1.0, 0.0), // Yellow selection
+                });
+                info!("🎯 Unit selected! Right-click to move.");
+            }
+        }
+    }
+}
+
+// ==================== SELECTION INDICATOR SYSTEM ====================
+
+fn selection_indicator_system(
+    mut commands: Commands,
+    selected_query: Query<(Entity, &Transform, &Selected), With<Unit>>,
+    indicator_query: Query<Entity, (With<SelectionIndicator>, Without<Unit>)>,
+) {
+    // Remove old indicators
+    for entity in indicator_query.iter() {
+        commands.entity(entity).despawn();
+    }
+    
+    // Add new indicators for selected units
+    for (_, transform, selected) in selected_query.iter() {
+        commands.spawn((
+            SpriteBundle {
+                sprite: Sprite {
+                    color: selected.selection_color,
+                    custom_size: Some(Vec2::new(80.0, 80.0)), // Circle around unit
+                    ..default()
+                },
+                transform: Transform::from_translation(transform.translation + Vec3::new(0.0, 0.0, -0.5)),
+                ..default()
+            },
+            SelectionIndicator,
+        ));
+    }
+}
+
+#[derive(Component)]
+struct SelectionIndicator;
+
 fn handle_input(
     input: Res<Input<KeyCode>>,
+    mouse_button_input: Res<Input<MouseButton>>,
     mut commands: Commands,
     mut game_state: ResMut<GameState>,
     game_assets: Res<GameAssets>,
     mut app_exit_events: EventWriter<bevy::app::AppExit>,
+    windows: Query<&Window>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<IsometricCamera>>,
+    mut selected_units: Query<&mut Movement, (With<Selected>, With<Unit>)>,
 ) {
+    // Right-click to move selected units
+    if mouse_button_input.just_pressed(MouseButton::Right) {
+        let window = windows.single();
+        if let Ok((camera, camera_transform)) = camera_query.get_single() {
+            if let Some(cursor_pos) = window.cursor_position() {
+                if let Some(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
+                    let target_pos = Vec3::new(world_pos.x, world_pos.y, 0.0);
+                    
+                    // Move all selected units to the target position
+                    for mut movement in selected_units.iter_mut() {
+                        movement.target_position = Some(target_pos);
+                        info!("🚶 Unit moving to position: ({:.0}, {:.0})", target_pos.x, target_pos.y);
+                    }
+                }
+            }
+        }
+    }
+    
     if input.just_pressed(KeyCode::Space) {
         // Deploy roadblock with enhanced visuals
         let position = Vec3::new(
