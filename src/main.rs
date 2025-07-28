@@ -23,8 +23,8 @@ struct IsometricCamera;
 
 // Isometric transformation helper function
 fn world_to_iso(world_pos: Vec3) -> Vec3 {
-    let x = (world_pos.x - world_pos.y) * 0.2; // Much less dramatic angle
-    let y = (world_pos.x + world_pos.y) * 0.1; // Much flatter perspective  
+    let x = (world_pos.x - world_pos.y) * 0.5; // Moderate isometric angle
+    let y = (world_pos.x + world_pos.y) * 0.25; // Better perspective depth
     Vec3::new(x, y, world_pos.z)
 }
 
@@ -76,9 +76,9 @@ struct WaveSpawner {
 #[derive(Component)]
 struct Objective {
     objective_type: ObjectiveType,
-    position: Vec3,
-    radius: f32,
-    health: f32,
+    _position: Vec3,
+    _radius: f32,
+    _health: f32,
 }
 
 #[derive(Component)]
@@ -96,6 +96,7 @@ struct ScoreText;
 // ==================== ENUMS & TYPES ====================
 
 #[derive(Clone, PartialEq, Debug)]
+#[allow(dead_code)]
 enum Faction {
     Cartel,
     Military,
@@ -117,6 +118,7 @@ enum UnitType {
 }
 
 #[derive(Clone, PartialEq, Debug)]
+#[allow(dead_code)]
 enum ObjectiveType {
     Safehouse,      // Cartel must defend
     ExtractionPoint, // Military tries to reach
@@ -140,17 +142,13 @@ struct GameAssets {
     roadblock_sprite: Handle<Image>,
     safehouse_sprite: Handle<Image>,
     
-    // UI textures
-    health_bar_bg: Handle<Image>,
-    health_bar_fill: Handle<Image>,
-    
-    // Fonts
-    main_font: Handle<Font>,
-    
-    // Audio
-    gunshot_sound: Handle<KiraAudioSource>,
-    explosion_sound: Handle<KiraAudioSource>,
-    radio_chatter: Handle<KiraAudioSource>,
+    // Future expansion assets
+    _health_bar_bg: Handle<Image>,
+    _health_bar_fill: Handle<Image>,
+    _main_font: Handle<Font>,
+    _gunshot_sound: Handle<KiraAudioSource>,
+    _explosion_sound: Handle<KiraAudioSource>,
+    _radio_chatter: Handle<KiraAudioSource>,
 }
 
 #[derive(Resource)]
@@ -237,12 +235,12 @@ fn setup_assets(
         vehicle_sprite: asset_server.load("sprites/units/vehicle.png"),
         roadblock_sprite: asset_server.load("sprites/units/roadblock.png"),
         safehouse_sprite: asset_server.load("sprites/units/safehouse.png"),
-        health_bar_bg: Handle::default(),
-        health_bar_fill: Handle::default(),
-        main_font: Handle::default(), // Use default font for now
-        gunshot_sound: Handle::default(),
-        explosion_sound: Handle::default(),
-        radio_chatter: Handle::default(),
+        _health_bar_bg: Handle::default(),
+        _health_bar_fill: Handle::default(),
+        _main_font: Handle::default(),
+        _gunshot_sound: Handle::default(),
+        _explosion_sound: Handle::default(),
+        _radio_chatter: Handle::default(),
     };
     
     commands.insert_resource(assets);
@@ -254,7 +252,7 @@ fn setup_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
     commands.spawn((
         Camera2dBundle {
             transform: Transform::from_xyz(0.0, 0.0, 999.9)
-                .with_scale(Vec3::splat(0.6)), // Zoom in to see units better
+                .with_scale(Vec3::splat(0.8)), // Better zoom level for visibility
             ..default()
         },
         IsometricCamera,
@@ -469,9 +467,9 @@ fn setup_game(
         },
         Objective {
             objective_type: ObjectiveType::Safehouse,
-            position: safehouse_pos,
-            radius: 100.0,
-            health: 200.0,
+            _position: safehouse_pos,
+            _radius: 100.0,
+            _health: 200.0,
         },
     ));
     
@@ -1193,10 +1191,12 @@ fn game_phase_system(
         game_state.game_phase = new_phase;
     }
     
-    // Victory/Defeat conditions
-    if !ovidio_alive && !game_state.ovidio_captured {
-        info!("💀 DEFEAT: Ovidio Guzmán López was killed in the operation");
-        game_state.game_phase = GamePhase::GameOver;
+    // Victory/Defeat conditions (only check after game has started properly)
+    if game_state.mission_timer > 5.0 {
+        if !ovidio_alive && !game_state.ovidio_captured {
+            info!("💀 DEFEAT: Ovidio Guzmán López was killed in the operation");
+            game_state.game_phase = GamePhase::GameOver;
+        }
     } else if game_state.ovidio_captured && !cartel_alive {
         info!("🎖️ MILITARY VICTORY: Target captured, cartel eliminated");  
         game_state.game_phase = GamePhase::GameOver;
@@ -1212,6 +1212,7 @@ fn handle_input(
     mut commands: Commands,
     mut game_state: ResMut<GameState>,
     game_assets: Res<GameAssets>,
+    mut app_exit_events: EventWriter<bevy::app::AppExit>,
 ) {
     if input.just_pressed(KeyCode::Space) {
         // Deploy roadblock with enhanced visuals
@@ -1334,7 +1335,7 @@ fn handle_input(
         info!("🏛️ SIMULATION ENDED");
         info!("📚 Historical Note: The real Battle of Culiacán ended with the government releasing Ovidio Guzmán López");
         info!("⚖️ This demonstrated the complex balance of power between organized crime and the state in Mexico");
-        std::process::exit(0);
+        app_exit_events.send(bevy::app::AppExit);
     }
     
     // Debug keys
