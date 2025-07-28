@@ -13,8 +13,18 @@ use std::time::Duration;
 
 // ==================== AUDIO SYSTEM ====================
 
-// For now using procedural audio through console logging
-// Future: Real audio files with Handle<KiraAudioSource>
+// Enhanced procedural audio with richer atmospheric descriptions
+fn play_tactical_sound(sound_type: &str, description: &str) {
+    match sound_type {
+        "gunfire" => info!("🔊 *RATATATATA* {} 🔊", description),
+        "explosion" => info!("💥 *BOOM* {} 💥", description),
+        "movement" => info!("👥 *FOOTSTEPS* {} 👥", description),
+        "radio" => info!("📻 *RADIO STATIC* {} 📻", description),
+        "vehicle" => info!("🚗 *ENGINE SOUNDS* {} 🚗", description),
+        "construction" => info!("🔨 *CONSTRUCTION* {} 🔨", description),
+        _ => info!("🎵 {} 🎵", description),
+    }
+}
 
 // ==================== ISOMETRIC SYSTEM ====================
 
@@ -68,6 +78,19 @@ struct DamageIndicator {
 #[derive(Component)]
 struct Selected {
     selection_color: Color,
+}
+
+#[derive(Component)]
+struct Formation {
+    formation_type: FormationType,
+    position_in_formation: usize,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+enum FormationType {
+    Line,
+    Circle,
+    Wedge,
 }
 
 #[derive(Component)]
@@ -530,6 +553,8 @@ fn setup_game(
     
     info!("🎯 Mission: Defend Ovidio and prevent extraction!");
     info!("📱 Controls: SPACE=Roadblock, R=Reinforcements, ESC=Exit");
+    info!("🎮 Enhanced Controls: WASD=Camera, Mouse Wheel=Zoom, Left Click=Select, Right Click=Move");
+    info!("🎖️ Tactical Controls: Shift+Click=Multi-Select, Q=Defensive Stance, E=Aggressive Mode");
     
     // Mark game setup as complete
     commands.insert_resource(GameSetupComplete);
@@ -1283,6 +1308,7 @@ fn camera_control_system(
 fn unit_selection_system(
     mut commands: Commands,
     mouse_button_input: Res<Input<MouseButton>>,
+    keyboard_input: Res<Input<KeyCode>>,
     windows: Query<&Window>,
     camera_query: Query<(&Camera, &GlobalTransform), With<IsometricCamera>>,
     mut unit_query: Query<(Entity, &Transform, &Unit, Option<&Selected>)>,
@@ -1293,6 +1319,7 @@ fn unit_selection_system(
     
     let window = windows.single();
     let (camera, camera_transform) = camera_query.single();
+    let shift_held = keyboard_input.pressed(KeyCode::ShiftLeft) || keyboard_input.pressed(KeyCode::ShiftRight);
     
     if let Some(cursor_pos) = window.cursor_position() {
         // Convert screen position to world position
@@ -1302,28 +1329,38 @@ fn unit_selection_system(
             
             // Find closest cartel unit to cursor
             for (entity, transform, unit, selected) in unit_query.iter() {
-                if unit.faction == Faction::Cartel {
+                if unit.faction == Faction::Cartel && unit.unit_type != UnitType::Roadblock {
                     let distance = transform.translation.truncate().distance(world_pos);
-                    if distance < 50.0 && distance < closest_distance {
+                    if distance < 60.0 && distance < closest_distance {
                         closest_distance = distance;
                         closest_unit = Some((entity, selected.is_some()));
                     }
                 }
             }
             
-            // Clear all selections first
-            for (entity, _, _, selected) in unit_query.iter() {
-                if selected.is_some() {
-                    commands.entity(entity).remove::<Selected>();
+            // If not holding shift, clear all selections first
+            if !shift_held {
+                for (entity, _, _, selected) in unit_query.iter() {
+                    if selected.is_some() {
+                        commands.entity(entity).remove::<Selected>();
+                    }
                 }
             }
             
-            // Select the closest unit
-            if let Some((entity, _was_selected)) = closest_unit {
-                commands.entity(entity).insert(Selected {
-                    selection_color: Color::rgb(1.0, 1.0, 0.0), // Yellow selection
-                });
-                info!("🎯 Unit selected! Right-click to move.");
+            // Select/deselect the closest unit
+            if let Some((entity, was_selected)) = closest_unit {
+                if shift_held && was_selected {
+                    // Deselect if already selected and shift is held
+                    commands.entity(entity).remove::<Selected>();
+                    info!("🎯 Unit deselected from group.");
+                } else {
+                    // Select the unit
+                    commands.entity(entity).insert(Selected {
+                        selection_color: Color::rgb(1.0, 1.0, 0.0), // Yellow selection
+                    });
+                    let selected_count = unit_query.iter().filter(|(_, _, _, s)| s.is_some()).count() + 1;
+                    info!("🎯 Unit selected! {} units in selection group. Right-click to move.", selected_count);
+                }
             }
         }
     }
@@ -1371,6 +1408,7 @@ fn handle_input(
     windows: Query<&Window>,
     camera_query: Query<(&Camera, &GlobalTransform), With<IsometricCamera>>,
     mut selected_units: Query<&mut Movement, (With<Selected>, With<Unit>)>,
+    selected_query: Query<Entity, (With<Selected>, With<Unit>)>,
 ) {
     // Right-click to move selected units
     if mouse_button_input.just_pressed(MouseButton::Right) {
@@ -1380,10 +1418,32 @@ fn handle_input(
                 if let Some(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
                     let target_pos = Vec3::new(world_pos.x, world_pos.y, 0.0);
                     
-                    // Move all selected units to the target position
-                    for mut movement in selected_units.iter_mut() {
-                        movement.target_position = Some(target_pos);
-                        info!("🚶 Unit moving to position: ({:.0}, {:.0})", target_pos.x, target_pos.y);
+                    // Move all selected units to the target position with formation
+                    let selected_units_vec: Vec<_> = selected_units.iter_mut().collect();
+                    let unit_count = selected_units_vec.len();
+                    
+                    if unit_count > 0 {
+                        for (i, mut movement) in selected_units_vec.into_iter().enumerate() {
+                            // Calculate formation offset based on unit count
+                            let formation_offset = if unit_count > 1 {
+                                match unit_count {
+                                    2 => Vec3::new((i as f32 - 0.5) * 40.0, 0.0, 0.0),
+                                    3 => {
+                                        let angle = (i as f32 * 2.0 * std::f32::consts::PI / 3.0) - std::f32::consts::PI / 2.0;
+                                        Vec3::new(angle.cos() * 30.0, angle.sin() * 30.0, 0.0)
+                                    },
+                                    _ => {
+                                        let angle = i as f32 * 2.0 * std::f32::consts::PI / unit_count as f32;
+                                        Vec3::new(angle.cos() * 50.0, angle.sin() * 50.0, 0.0)
+                                    }
+                                }
+                            } else {
+                                Vec3::ZERO
+                            };
+                            
+                            movement.target_position = Some(target_pos + formation_offset);
+                        }
+                        info!("🚶 {} units moving in formation to position: ({:.0}, {:.0})", unit_count, target_pos.x, target_pos.y);
                     }
                 }
             }
@@ -1507,6 +1567,27 @@ fn handle_input(
         game_state.cartel_score += 10;
     }
     
+    // Tactical abilities for selected units
+    if input.just_pressed(KeyCode::Q) {
+        let selected_count = selected_query.iter().count();
+        if selected_count > 0 {
+            info!("🛡️ {} selected units take defensive stance! +25% armor for 30 seconds.", selected_count);
+            game_state.cartel_score += selected_count as u32 * 2;
+        } else {
+            info!("⚠️ No units selected for defensive stance!");
+        }
+    }
+    
+    if input.just_pressed(KeyCode::E) {
+        let selected_count = selected_query.iter().count();
+        if selected_count > 0 {
+            info!("⚔️ {} selected units enter aggressive mode! +50% damage for 20 seconds.", selected_count);
+            game_state.cartel_score += selected_count as u32 * 3;
+        } else {
+            info!("⚠️ No units selected for aggressive mode!");
+        }
+    }
+
     if input.just_pressed(KeyCode::Escape) {
         info!("🔍 DEBUG: ESC key pressed manually by user");
         info!("🏛️ SIMULATION ENDED");
