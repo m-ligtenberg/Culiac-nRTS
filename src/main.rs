@@ -195,6 +195,9 @@ fn main() {
                 title: "Battle of Culiacán - El Culiacanazo RTS".into(),
                 resolution: (1400.0, 900.0).into(),
                 resizable: true,
+                present_mode: bevy::window::PresentMode::AutoVsync,
+                mode: bevy::window::WindowMode::Windowed,
+                visible: true,
                 ..default()
             }),
             ..default()
@@ -248,11 +251,22 @@ fn setup_assets(
 }
 
 fn setup_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
+    // Add a background to make sprites visible
+    commands.spawn(SpriteBundle {
+        sprite: Sprite {
+            color: Color::rgb(0.2, 0.3, 0.2), // Dark green background
+            custom_size: Some(Vec2::new(2000.0, 1500.0)),
+            ..default()
+        },
+        transform: Transform::from_translation(Vec3::new(0.0, 0.0, -10.0)),
+        ..default()
+    });
+    
     // Camera setup with better positioning for isometric view
     commands.spawn((
         Camera2dBundle {
             transform: Transform::from_xyz(0.0, 0.0, 999.9)
-                .with_scale(Vec3::splat(0.8)), // Better zoom level for visibility
+                .with_scale(Vec3::splat(1.5)), // Zoom out more to see the battlefield
             ..default()
         },
         IsometricCamera,
@@ -442,18 +456,18 @@ fn setup_game(
         ));
     }
     
-    // Spawn Ovidio (High Value Target) in safehouse
-    spawn_ovidio(&mut commands, Vec3::new(-100.0, 50.0, 0.0), &game_assets);
+    // Spawn Ovidio (High Value Target) at center for visibility
+    spawn_ovidio(&mut commands, Vec3::new(0.0, 0.0, 0.0), &game_assets);
     
-    // Spawn initial cartel defenders in a tighter formation
+    // Spawn initial cartel defenders around the center
     for i in 0..3 {
         spawn_unit(&mut commands, UnitType::Sicario, Faction::Cartel, 
-                   Vec3::new(-50.0 + i as f32 * 30.0, 20.0, 0.0), 
+                   Vec3::new(-100.0 + i as f32 * 100.0, -50.0, 0.0), 
                    &game_assets);
     }
     
     // Spawn safehouse objective with enhanced graphics
-    let safehouse_pos = Vec3::new(-100.0, 80.0, 0.0);
+    let safehouse_pos = Vec3::new(0.0, 100.0, 0.0);
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -513,7 +527,7 @@ fn spawn_ovidio(
             texture: game_assets.ovidio_sprite.clone(),
             sprite: Sprite {
                 color: Color::rgb(1.0, 0.8, 0.0), // Golden tint for VIP
-                custom_size: Some(Vec2::new(48.0, 48.0)), // Consistent sizing
+                custom_size: Some(Vec2::new(64.0, 64.0)), // Larger for visibility
                 ..default()
             },
             transform: Transform::from_translation(world_to_iso(position)),
@@ -587,7 +601,7 @@ fn spawn_unit(
         SpriteBundle {
             texture: sprite_handle,
             sprite: Sprite {
-                custom_size: Some(Vec2::new(48.0, 48.0)), // Ensure consistent sprite size
+                custom_size: Some(Vec2::new(64.0, 64.0)), // Larger sprite size for visibility
                 ..default()
             },
             transform: Transform::from_translation(world_to_iso(position)),
@@ -1194,10 +1208,13 @@ fn game_phase_system(
     // Victory/Defeat conditions (only check after game has started properly)
     if game_state.mission_timer > 5.0 {
         if !ovidio_alive && !game_state.ovidio_captured {
+            info!("🔍 DEBUG: Ovidio death detected - ovidio_alive: {}, captured: {}, timer: {:.1}s", ovidio_alive, game_state.ovidio_captured, game_state.mission_timer);
             info!("💀 DEFEAT: Ovidio Guzmán López was killed in the operation");
             game_state.game_phase = GamePhase::GameOver;
         }
-    } else if game_state.ovidio_captured && !cartel_alive {
+    }
+    
+    if game_state.ovidio_captured && !cartel_alive {
         info!("🎖️ MILITARY VICTORY: Target captured, cartel eliminated");  
         game_state.game_phase = GamePhase::GameOver;
     } else if game_state.mission_timer > 600.0 && cartel_alive {
@@ -1227,7 +1244,7 @@ fn handle_input(
                 texture: game_assets.roadblock_sprite.clone(),
                 sprite: Sprite {
                     color: Color::rgb(0.8, 0.6, 0.3), // Slightly brighter tint for visibility
-                    custom_size: Some(Vec2::new(48.0, 48.0)), // Consistent sizing
+                    custom_size: Some(Vec2::new(64.0, 64.0)), // Larger for visibility
                     ..default()
                 },
                 transform: Transform::from_translation(world_to_iso(position)),
@@ -1332,6 +1349,7 @@ fn handle_input(
     }
     
     if input.just_pressed(KeyCode::Escape) {
+        info!("🔍 DEBUG: ESC key pressed manually by user");
         info!("🏛️ SIMULATION ENDED");
         info!("📚 Historical Note: The real Battle of Culiacán ended with the government releasing Ovidio Guzmán López");
         info!("⚖️ This demonstrated the complex balance of power between organized crime and the state in Mexico");
