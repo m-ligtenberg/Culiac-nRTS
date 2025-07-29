@@ -74,7 +74,34 @@ pub fn spawn_unit(
             target_position: None,
             speed,
         },
-    )).id();
+        AnimatedSprite {
+            animation_timer: Timer::from_seconds(2.0, TimerMode::Repeating),
+            scale_amplitude: 0.05, // Gentle pulsing
+            rotation_speed: 0.1, // Slow rotation
+            base_scale: Vec3::new(1.0, 1.0, 1.0),
+        },
+        MovementAnimation {
+            bob_timer: Timer::from_seconds(0.5, TimerMode::Repeating),
+            bob_amplitude: 2.0, // Small vertical movement
+            base_y: iso_position.y,
+        },
+        PathfindingAgent {
+            path: Vec::new(),
+            current_waypoint: 0,
+            avoidance_radius: 40.0,
+            max_speed: speed,
+            stuck_timer: 0.0,
+        },
+    ));
+
+    let entity = entity.id();
+    
+    // Add obstacle component for roadblocks
+    if unit_type == UnitType::Roadblock {
+        commands.entity(entity).insert(Obstacle {
+            radius: 50.0,
+        });
+    }
 
     // Emoji overlay for clear unit identification
     commands.spawn((

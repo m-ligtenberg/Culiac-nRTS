@@ -71,6 +71,12 @@ pub fn game_phase_system(
     
     // Phase transitions based on time and conditions
     match game_state.game_phase {
+        GamePhase::MainMenu | GamePhase::SaveMenu | GamePhase::LoadMenu => {
+            // Handled by main_menu_system
+        },
+        GamePhase::MissionBriefing => {
+            // Handled by mission_briefing_system
+        },
         GamePhase::Preparation => {
             if game_state.mission_timer > 15.0 {
                 game_state.game_phase = GamePhase::InitialRaid;
@@ -137,6 +143,12 @@ pub fn mission_system(
     
     // Mission-specific logic can be added here based on current phase
     match game_state.game_phase {
+        GamePhase::MainMenu | GamePhase::SaveMenu | GamePhase::LoadMenu => {
+            // Menu phases - no mission logic
+        },
+        GamePhase::MissionBriefing => {
+            // Mission briefing display phase
+        },
         GamePhase::Preparation => {
             // Setup phase - ensure all systems are ready
         },
@@ -278,10 +290,20 @@ pub fn handle_input(
         }
     }
     
-    // End simulation
+    // Main menu access
     if input.just_pressed(KeyCode::Escape) {
-        play_tactical_sound("radio", "Simulation terminated. Historical outcome: Government forces withdrew, Ovidio remained free.");
-        info!("🏁 Game ended by user. Final score - Cartel: {}, Military: {}", game_state.cartel_score, game_state.military_score);
-        app_exit_events.send(bevy::app::AppExit);
+        match game_state.game_phase {
+            GamePhase::MainMenu | GamePhase::SaveMenu | GamePhase::LoadMenu => {
+                // Already in menu or submenu - exit game
+                play_tactical_sound("radio", "Simulation terminated. Historical outcome: Government forces withdrew, Ovidio remained free.");
+                info!("🏁 Game ended by user. Final score - Cartel: {}, Military: {}", game_state.cartel_score, game_state.military_score);
+                app_exit_events.send(bevy::app::AppExit);
+            },
+            _ => {
+                // Go to main menu to access save/load
+                game_state.game_phase = GamePhase::MainMenu;
+                play_tactical_sound("radio", "Opening main menu...");
+            }
+        }
     }
 }

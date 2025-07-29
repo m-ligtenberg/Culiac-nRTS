@@ -50,7 +50,7 @@ impl Default for GameState {
             current_wave: 0,
             cartel_score: 0,
             military_score: 0,
-            game_phase: GamePhase::Preparation,
+            game_phase: GamePhase::MainMenu,
             ovidio_captured: false,
         }
     }
@@ -84,4 +84,10 @@ pub struct SaveData {
     pub game_state: GameState,
     pub timestamp: String,
     pub version: String,
+}
+
+// ==================== CONDITION FUNCTIONS ====================
+
+pub fn not_in_menu_phase(game_state: Res<GameState>) -> bool {
+    !matches!(game_state.game_phase, GamePhase::MainMenu | GamePhase::SaveMenu | GamePhase::LoadMenu)
 }

@@ -35,6 +35,7 @@ pub fn ai_director_system(
     
     // Adjust difficulty based on game phase
     let phase_difficulty = match game_state.game_phase {
+        GamePhase::MainMenu | GamePhase::SaveMenu | GamePhase::LoadMenu | GamePhase::MissionBriefing => 0.0,
         GamePhase::Preparation => 0.8,
         GamePhase::InitialRaid => 1.0,
         GamePhase::BlockConvoy => 1.2,

@@ -236,3 +236,6 @@ This game serves as an educational tool to understand:
 - **Don't mention yourself in commits**
 
 **Current Status**: Fully functional, professional-quality RTS ready for enhancement and expansion. The foundation is solid - focus on features that enhance the educational and gameplay experience while maintaining historical accuracy and technical excellence.
+
+## 💡 **Development Memories**
+- Only use cargo check to save computing power

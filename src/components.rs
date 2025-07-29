@@ -128,7 +128,43 @@ pub struct WaveText;
 pub struct ScoreText;
 
 #[derive(Component)]
+pub struct MissionBriefing;
+
+#[derive(Component)]
+pub struct MissionTitle;
+
+#[derive(Component)]
+pub struct MissionDescription;
+
+#[derive(Component)]
+pub struct MissionObjectives;
+
+// Save/Load Menu Components
+#[derive(Component)]
+pub struct SaveLoadMenu;
+
+#[derive(Component)]
+pub struct SaveButton;
+
+#[derive(Component)]
+pub struct LoadButton;
+
+#[derive(Component)]
+pub struct SaveSlot {
+    pub slot_id: usize,
+}
+
+#[derive(Component)]
+pub struct NewGameButton;
+
+#[derive(Component)]
+pub struct MainMenuButton;
+
+#[derive(Component)]
 pub struct SelectionIndicator;
+
+#[derive(Component)]
+pub struct TargetIndicator;
 
 // ==================== MINIMAP COMPONENTS ====================
 
@@ -147,6 +183,74 @@ pub struct MiniMapIcon {
 pub struct ParticleEffect {
     pub lifetime: Timer,
     pub velocity: Vec3,
+}
+
+// Animation system components
+#[derive(Component)]
+pub struct AnimatedSprite {
+    pub animation_timer: Timer,
+    pub scale_amplitude: f32,
+    pub rotation_speed: f32,
+    pub base_scale: Vec3,
+}
+
+#[derive(Component)]
+pub struct MovementAnimation {
+    pub bob_timer: Timer,
+    pub bob_amplitude: f32,
+    pub base_y: f32,
+}
+
+// Pathfinding components
+#[derive(Component)]
+pub struct PathfindingAgent {
+    pub path: Vec<Vec3>,
+    pub current_waypoint: usize,
+    pub avoidance_radius: f32,
+    pub max_speed: f32,
+    pub stuck_timer: f32,
+}
+
+#[derive(Component)]
+pub struct Obstacle {
+    pub radius: f32,
+}
+
+// Unit ability system
+#[derive(Component)]
+pub struct UnitAbility {
+    pub ability_type: AbilityType,
+    pub cooldown: Timer,
+    pub range: f32,
+    pub energy_cost: u32,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum AbilityType {
+    // Cartel abilities
+    BurstFire,       // Rapid fire attack
+    Intimidate,      // Reduce enemy morale/damage
+    CallBackup,      // Summon reinforcement unit
+    // Military abilities  
+    FragGrenade,     // Area damage
+    AirStrike,       // Long range bombardment
+    TacticalRetreat, // Temporary speed boost + damage reduction
+}
+
+#[derive(Component)]
+pub struct AbilityEffect {
+    pub effect_type: EffectType,
+    pub duration: Timer,
+    pub strength: f32,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum EffectType {
+    DamageBoost(f32),
+    SpeedBoost(f32), 
+    DamageReduction(f32),
+    Stunned,
+    Intimidated,
 }
 
 // ==================== SPAWNING COMPONENTS ====================
@@ -202,6 +306,10 @@ pub enum ObjectiveType {
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum GamePhase {
+    MainMenu,       // Main menu with save/load options
+    SaveMenu,       // Save game menu
+    LoadMenu,       // Load game menu
+    MissionBriefing, // Show mission briefing screen
     Preparation,    // Initial setup
     InitialRaid,   // Mission 1: Defend safehouse
     BlockConvoy,   // Mission 2: Block extraction

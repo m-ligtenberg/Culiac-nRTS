@@ -107,6 +107,7 @@ pub fn campaign_system(
     
     // Map game phases to mission progression
     let current_mission = match game_state.game_phase {
+        GamePhase::MainMenu | GamePhase::SaveMenu | GamePhase::LoadMenu | GamePhase::MissionBriefing => campaign.progress.current_mission.clone(),
         GamePhase::Preparation | GamePhase::InitialRaid => MissionId::InitialRaid,
         GamePhase::BlockConvoy => MissionId::UrbanWarfare,
         GamePhase::ApplyPressure => MissionId::GovernmentResponse,
