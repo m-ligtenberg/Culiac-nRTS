@@ -136,6 +136,19 @@ pub fn setup_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
             ),
             ScoreText,
         ));
+        
+        // Difficulty display
+        parent.spawn((
+            TextBundle::from_section(
+                "Difficulty: 1.0 (AUTO) | Performance: 50%\nD=Toggle | F1-F4=Set Level",
+                TextStyle {
+                    font_size: 14.0,
+                    color: Color::ORANGE,
+                    ..default()
+                },
+            ),
+            DifficultyDisplay,
+        ));
     });
     
     info!("✅ UI elements created successfully!");
@@ -451,7 +464,7 @@ pub fn combat_system(
         // Calculate damage modifier
         let damage_modifier = match attacker_weapon {
             WeaponType::HeavyMachineGun | WeaponType::RPG => 1.5,
-            WeaponType::TacticalRifle | WeaponType::SniperRifle => 1.3,
+            WeaponType::TacticalRifle | WeaponType::CartelSniperRifle | WeaponType::MilitarySniperRifle => 1.3,
             WeaponType::VehicleWeapons => 2.0,
             _ => 1.0,
         };
@@ -807,6 +820,77 @@ fn execute_ability_simple(
             });
             play_tactical_sound("ability", "Tactical retreat! Speed boost and damage reduction active");
         },
+        AbilityType::PrecisionShot => {
+            // High-damage single shot with armor piercing
+            if let Some((target_entity, _, _, _)) = enemy_data.iter()
+                .find(|(_, pos, _, health)| caster_position.distance(*pos) <= 250.0 && *health > 0.0) {
+                commands.entity(*target_entity).insert(AbilityEffect {
+                    effect_type: EffectType::ArmorPiercing,
+                    duration: Timer::from_seconds(0.1, TimerMode::Once),
+                    strength: 120.0, // High damage
+                });
+            }
+            play_tactical_sound("ability", "Precision shot! High-damage armor-piercing round fired");
+        },
+        AbilityType::SuppressiveFire => {
+            // Area suppression effect
+            let suppression_range = 120.0;
+            for (enemy_entity, enemy_position, _, enemy_health) in enemy_data.iter() {
+                let distance = caster_position.distance(*enemy_position);
+                if distance <= suppression_range && *enemy_health > 0.0 {
+                    commands.entity(*enemy_entity).insert(AbilityEffect {
+                        effect_type: EffectType::Suppressed,
+                        duration: Timer::from_seconds(6.0, TimerMode::Once),
+                        strength: 0.6, // 40% accuracy reduction
+                    });
+                }
+            }
+            play_tactical_sound("ability", "Suppressive fire! Enemy accuracy and movement reduced");
+        },
+        AbilityType::FieldMedic => {
+            // Heal nearby allies
+            // Note: Would need ally query to implement properly, using caster for now
+            commands.entity(caster_entity).insert(AbilityEffect {
+                effect_type: EffectType::Healing(25.0),
+                duration: Timer::from_seconds(5.0, TimerMode::Once),
+                strength: 25.0,
+            });
+            play_tactical_sound("ability", "Field medic! Healing allies in the area");
+        },
+        AbilityType::TankShell => {
+            // Massive area damage
+            create_explosion_effect_simple(commands, caster_position, 100.0, 80.0, enemy_data);
+            play_tactical_sound("ability", "Tank shell fired! Devastating area damage");
+        },
+        AbilityType::StrafeRun => {
+            // Linear area attack
+            for (enemy_entity, enemy_position, _, enemy_health) in enemy_data.iter() {
+                let distance = caster_position.distance(*enemy_position);
+                if distance <= 150.0 && *enemy_health > 0.0 {
+                    commands.entity(*enemy_entity).insert(AbilityEffect {
+                        effect_type: EffectType::ArmorPiercing,
+                        duration: Timer::from_seconds(0.1, TimerMode::Once),
+                        strength: 60.0,
+                    });
+                }
+            }
+            play_tactical_sound("ability", "Helicopter strafe run! Multiple targets engaged");
+        },
+        AbilityType::DeployBarricade => {
+            // Create defensive cover
+            let barricade_pos = caster_position + Vec3::new(40.0, 0.0, 0.0);
+            spawn_unit(commands, UnitType::Roadblock, Faction::Military, barricade_pos, _game_assets);
+            play_tactical_sound("ability", "Barricade deployed! Defensive cover established");
+        },
+        AbilityType::RepairVehicle => {
+            // Heal nearby vehicles/allies
+            commands.entity(caster_entity).insert(AbilityEffect {
+                effect_type: EffectType::Healing(40.0),
+                duration: Timer::from_seconds(3.0, TimerMode::Once),
+                strength: 40.0,
+            });
+            play_tactical_sound("ability", "Repair tools active! Vehicle health restored");
+        },
     }
 }
 
@@ -918,6 +1002,13 @@ fn get_ability_cooldown(ability_type: &AbilityType) -> f32 {
         AbilityType::FragGrenade => 10.0,
         AbilityType::AirStrike => 15.0,
         AbilityType::TacticalRetreat => 18.0,
+        AbilityType::PrecisionShot => 8.0,
+        AbilityType::SuppressiveFire => 12.0,
+        AbilityType::FieldMedic => 6.0,
+        AbilityType::TankShell => 15.0,
+        AbilityType::StrafeRun => 20.0,
+        AbilityType::DeployBarricade => 25.0,
+        AbilityType::RepairVehicle => 10.0,
     }
 }
 
@@ -929,6 +1020,13 @@ fn get_ability_range(ability_type: &AbilityType) -> f32 {
         AbilityType::FragGrenade => 120.0,
         AbilityType::AirStrike => 150.0,
         AbilityType::TacticalRetreat => 0.0, // Self-target
+        AbilityType::PrecisionShot => 300.0,
+        AbilityType::SuppressiveFire => 160.0,
+        AbilityType::FieldMedic => 100.0,
+        AbilityType::TankShell => 250.0,
+        AbilityType::StrafeRun => 200.0,
+        AbilityType::DeployBarricade => 50.0,
+        AbilityType::RepairVehicle => 80.0,
     }
 }
 
@@ -960,6 +1058,27 @@ pub fn ability_effect_system(
             },
             EffectType::Intimidated => {
                 // Effect applied during combat
+            },
+            EffectType::Healing(amount) => {
+                // Apply healing over time
+                let heal_amount = amount * time.delta_seconds();
+                unit.health = (unit.health + heal_amount).min(unit.max_health);
+            },
+            EffectType::Suppressed => {
+                // Reduce movement and accuracy - applied during movement/combat
+            },
+            EffectType::ArmorPiercing => {
+                // Apply instant damage bypassing armor
+                if effect.strength > 0.0 {
+                    unit.health -= effect.strength;
+                    effect.strength = 0.0; // Prevent multiple applications
+                }
+            },
+            EffectType::AerialView => {
+                // Enhanced detection range - applied in detection systems
+            },
+            EffectType::Fortified => {
+                // Damage reduction bonus - applied during damage calculations
             },
         }
         

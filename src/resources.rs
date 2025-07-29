@@ -89,5 +89,5 @@ pub struct SaveData {
 // ==================== CONDITION FUNCTIONS ====================
 
 pub fn not_in_menu_phase(game_state: Res<GameState>) -> bool {
-    !matches!(game_state.game_phase, GamePhase::MainMenu | GamePhase::SaveMenu | GamePhase::LoadMenu)
+    !matches!(game_state.game_phase, GamePhase::MainMenu | GamePhase::SaveMenu | GamePhase::LoadMenu | GamePhase::Victory | GamePhase::Defeat)
 }

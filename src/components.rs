@@ -1,6 +1,17 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+// ==================== DIFFICULTY COMPONENTS ====================
+
+#[derive(Component)]
+pub struct DifficultySettings;
+
+#[derive(Component)]
+pub struct DifficultyToggleButton;
+
+#[derive(Component)]
+pub struct DifficultyDisplay;
+
 // ==================== CAMERA COMPONENTS ====================
 
 #[derive(Component)]
@@ -51,11 +62,17 @@ pub enum WeaponType {
     AssaultRifle,
     HeavyMachineGun,
     RPG,
+    CartelSniperRifle,  // High precision, long range
+    LMG,                // Light machine gun for suppression
+    MedicBag,           // Healing equipment
     // Military weapons  
     StandardIssue,
     TacticalRifle,
-    SniperRifle,
+    MilitarySniperRifle,
     VehicleWeapons,
+    TankCannon,         // Heavy artillery
+    HelicopterWeapons,  // Air-to-ground systems
+    EngineerTools,      // Construction/repair equipment
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -88,13 +105,109 @@ pub struct Movement {
 pub struct Formation {
     pub formation_type: FormationType,
     pub position_in_formation: usize,
+    pub squad_id: u32,
+    pub formation_center: Vec3,
+    pub formation_facing: f32, // Rotation in radians
 }
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum FormationType {
-    Line,
-    Circle,
-    Wedge,
+    Line,           // Linear formation for defensive positions
+    Circle,         // Defensive circle around high-value target
+    Wedge,          // Assault formation for advancing
+    Flanking,       // Split formation for flanking maneuvers
+    Overwatch,      // Supporting fire positions
+    Retreat,        // Tactical withdrawal formation
+}
+
+// ==================== COORDINATION COMPONENTS ====================
+
+#[derive(Component)]
+pub struct Squad {
+    pub id: u32,
+    pub leader: Option<Entity>,
+    pub members: Vec<Entity>,
+    pub squad_type: SquadType,
+    pub current_objective: SquadObjective,
+    pub rally_point: Option<Vec3>,
+    pub cohesion_radius: f32,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum SquadType {
+    AssaultTeam,     // Aggressive front-line units
+    SupportTeam,     // Covering fire and overwatch
+    ReconTeam,       // Scouting and intelligence
+    SecurityTeam,    // Defensive perimeter units
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum SquadObjective {
+    Advance(Vec3),           // Move to position
+    Flank(Vec3, Vec3),       // Flank target from position
+    Defend(Vec3),            // Hold defensive position
+    Retreat(Vec3),           // Tactical withdrawal to point
+    Support(Entity),         // Support another unit/squad
+    Suppress(Vec3),          // Suppressive fire on area
+    Regroup(Vec3),          // Rally at location
+}
+
+#[derive(Component)]
+pub struct Communication {
+    pub radio_range: f32,
+    pub last_report_time: f32,
+    pub known_enemies: Vec<EnemyContact>,
+    pub received_orders: Vec<TacticalOrder>,
+}
+
+#[derive(Clone, Debug)]
+pub struct EnemyContact {
+    pub position: Vec3,
+    pub enemy_type: UnitType,
+    pub confidence: f32,     // 0.0 to 1.0
+    pub last_seen: f32,      // Time since last spotted
+}
+
+#[derive(Clone, Debug)]
+pub struct TacticalOrder {
+    pub order_type: OrderType,
+    pub target_position: Option<Vec3>,
+    pub target_entity: Option<Entity>,
+    pub priority: u8,        // 1-10, higher is more urgent
+    pub issued_time: f32,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum OrderType {
+    Attack(Vec3),
+    Defend(Vec3),
+    Retreat(Vec3),
+    Flank(Vec3),
+    Support(Entity),
+    ReportPosition,
+    SuppressArea(Vec3),
+    TakeCover,
+}
+
+#[derive(Component)]
+pub struct TacticalState {
+    pub current_state: TacticalMode,
+    pub state_timer: f32,
+    pub last_state_change: f32,
+    pub suppression_level: f32,  // 0.0 to 1.0, affects accuracy and movement
+    pub morale: f32,             // 0.0 to 1.0, affects decision making
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum TacticalMode {
+    Advancing,      // Moving toward objective
+    Engaging,       // In active combat
+    Retreating,     // Tactical withdrawal
+    Suppressed,     // Pinned down by enemy fire
+    Flanking,       // Executing flanking maneuver
+    Overwatch,      // Providing covering fire
+    Regrouping,     // Moving to rally point
+    HoldPosition,   // Maintaining defensive stance
 }
 
 // ==================== UI COMPONENTS ====================
@@ -159,6 +272,19 @@ pub struct NewGameButton;
 
 #[derive(Component)]
 pub struct MainMenuButton;
+
+// Victory/Defeat Components
+#[derive(Component)]
+pub struct VictoryScreen;
+
+#[derive(Component)]
+pub struct DefeatScreen;
+
+#[derive(Component)]
+pub struct MissionResultText;
+
+#[derive(Component)]
+pub struct ContinueButton;
 
 #[derive(Component)]
 pub struct SelectionIndicator;
@@ -231,10 +357,17 @@ pub enum AbilityType {
     BurstFire,       // Rapid fire attack
     Intimidate,      // Reduce enemy morale/damage
     CallBackup,      // Summon reinforcement unit
+    PrecisionShot,   // Sniper's high-damage single shot
+    SuppressiveFire, // Heavy gunner area suppression
+    FieldMedic,      // Heal nearby allies
     // Military abilities  
     FragGrenade,     // Area damage
     AirStrike,       // Long range bombardment
     TacticalRetreat, // Temporary speed boost + damage reduction
+    TankShell,       // Heavy artillery strike
+    StrafeRun,       // Helicopter attack run
+    DeployBarricade, // Engineer deploys cover
+    RepairVehicle,   // Engineer repairs damaged units
 }
 
 #[derive(Component)]
@@ -251,6 +384,11 @@ pub enum EffectType {
     DamageReduction(f32),
     Stunned,
     Intimidated,
+    Healing(f32),        // Health regeneration over time
+    Suppressed,          // Reduced accuracy and movement
+    ArmorPiercing,       // Bypass armor bonuses
+    AerialView,          // Helicopter spotting bonus
+    Fortified,           // Engineer cover bonus
 }
 
 // ==================== SPAWNING COMPONENTS ====================
@@ -286,10 +424,16 @@ pub enum UnitType {
     Sicario,
     Enforcer,
     Roadblock,
+    Sniper,      // Long-range precision unit
+    HeavyGunner, // High damage, slow movement
+    Medic,       // Healing and support unit
     // Military units  
     Soldier,
     SpecialForces,
     Vehicle,
+    Tank,        // Heavy armor and firepower
+    Helicopter,  // Air support unit
+    Engineer,    // Deployable structures and repairs
     // Special
     Ovidio, // High value target
 }
@@ -315,5 +459,7 @@ pub enum GamePhase {
     BlockConvoy,   // Mission 2: Block extraction
     ApplyPressure, // Mission 3: Escalate pressure
     HoldTheLine,   // Mission 4: Final showdown
-    GameOver,
+    Victory,       // Mission completed successfully
+    Defeat,        // Mission failed
+    GameOver,      // Final game over state
 }

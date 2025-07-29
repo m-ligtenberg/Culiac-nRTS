@@ -4,6 +4,7 @@ use crate::components::*;
 use crate::resources::*;
 use crate::utils::play_tactical_sound;
 use crate::spawners::spawn_unit;
+use crate::campaign::{evaluate_mission_objectives, MissionResult, VictoryType, DefeatType, Campaign};
 
 // ==================== WAVE SPAWNER SYSTEM ====================
 
@@ -60,6 +61,7 @@ pub fn wave_spawner_system(
 
 pub fn game_phase_system(
     mut game_state: ResMut<GameState>,
+    mut campaign: ResMut<Campaign>,
     unit_query: Query<&Unit>,
     time: Res<Time>,
 ) {
@@ -102,23 +104,27 @@ pub fn game_phase_system(
             }
         },
         GamePhase::HoldTheLine => {
-            // Victory condition: Survive long enough or eliminate enough military
-            if game_state.mission_timer > 480.0 || (military_units == 0 && cartel_units > 0) {
-                game_state.game_phase = GamePhase::GameOver;
-                game_state.cartel_score += 1000; // Bonus for victory
-                play_tactical_sound("radio", "VICTORY! Government forces withdraw. Ovidio remains free!");
-            }
+            // Use comprehensive objective evaluation
+            evaluate_mission_and_transition(&mut game_state, &mut campaign, &unit_query);
+        },
+        GamePhase::Victory => {
+            // Victory screen - handled by victory_defeat_system
+        },
+        GamePhase::Defeat => {
+            // Defeat screen - handled by victory_defeat_system
         },
         GamePhase::GameOver => {
-            // Game is over, maintain state
+            // Final game over state
         }
     }
     
-    // Defeat condition: Ovidio captured
-    if !ovidio_alive && game_state.game_phase != GamePhase::GameOver {
-        game_state.game_phase = GamePhase::GameOver;
-        game_state.military_score += 1000; // Bonus for capturing Ovidio
-        play_tactical_sound("radio", "MISSION FAILED! Ovidio has been captured. The operation is over.");
+    // For all active gameplay phases, continuously evaluate mission objectives
+    match game_state.game_phase {
+        GamePhase::Preparation | GamePhase::InitialRaid | GamePhase::BlockConvoy | 
+        GamePhase::ApplyPressure | GamePhase::HoldTheLine => {
+            evaluate_mission_and_transition(&mut game_state, &mut campaign, &unit_query);
+        },
+        _ => {}
     }
     
     // Update scores based on eliminated units
@@ -148,6 +154,9 @@ pub fn mission_system(
         },
         GamePhase::MissionBriefing => {
             // Mission briefing display phase
+        },
+        GamePhase::Victory | GamePhase::Defeat => {
+            // Victory/defeat phases - no mission logic
         },
         GamePhase::Preparation => {
             // Setup phase - ensure all systems are ready
@@ -304,6 +313,61 @@ pub fn handle_input(
                 game_state.game_phase = GamePhase::MainMenu;
                 play_tactical_sound("radio", "Opening main menu...");
             }
+        }
+    }
+}
+
+// ==================== MISSION EVALUATION ====================
+
+fn evaluate_mission_and_transition(
+    game_state: &mut GameState,
+    campaign: &mut Campaign,
+    unit_query: &Query<&Unit>,
+) {
+    let mission_result = evaluate_mission_objectives(campaign, game_state, unit_query);
+    
+    match mission_result {
+        MissionResult::Victory(victory_type) => {
+            game_state.game_phase = GamePhase::Victory;
+            
+            // Award victory bonus based on type
+            let bonus_score = match victory_type {
+                VictoryType::AllObjectivesComplete => 1500,
+                VictoryType::TimeLimit => 1000,
+                VictoryType::EnemiesEliminated => 1200,
+                VictoryType::TargetSurvived => 800,
+            };
+            game_state.cartel_score += bonus_score;
+            
+            let victory_message = match victory_type {
+                VictoryType::AllObjectivesComplete => "PERFECT VICTORY! All objectives completed successfully!",
+                VictoryType::TimeLimit => "VICTORY! Successfully held the line against government forces!",
+                VictoryType::EnemiesEliminated => "DECISIVE VICTORY! All enemy forces eliminated!",
+                VictoryType::TargetSurvived => "VICTORY! Target survived the assault!",
+            };
+            
+            play_tactical_sound("radio", victory_message);
+            info!("🏆 Mission Victory: {:?} - Bonus: {}", victory_type, bonus_score);
+        },
+        MissionResult::Defeat(defeat_type) => {
+            game_state.game_phase = GamePhase::Defeat;
+            
+            // Award some consolation points based on survival time
+            let consolation_score = (game_state.mission_timer * 2.0) as u32;
+            game_state.cartel_score += consolation_score;
+            
+            let defeat_message = match defeat_type {
+                DefeatType::TargetLost => "MISSION FAILED! Ovidio has been captured by government forces!",
+                DefeatType::TimeExpired => "MISSION FAILED! Time ran out before objectives were completed!",
+                DefeatType::AllUnitsDead => "MISSION FAILED! All cartel forces have been eliminated!",
+                DefeatType::ObjectiveFailed => "MISSION FAILED! Critical objectives were not met!",
+            };
+            
+            play_tactical_sound("radio", defeat_message);
+            info!("💀 Mission Defeat: {:?} - Consolation: {}", defeat_type, consolation_score);
+        },
+        MissionResult::InProgress => {
+            // Mission continues
         }
     }
 }

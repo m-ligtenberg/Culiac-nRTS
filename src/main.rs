@@ -20,13 +20,16 @@ mod campaign;
 mod save_system;
 mod utils;
 mod spawners;
+mod coordination;
+mod unit_systems;
 
 use resources::{*, not_in_menu_phase};
 use systems::*;
 use ui_systems::*;
 use game_systems::*;
-use ai::{ai_director_system, unit_ai_system};
+use ai::{ai_director_system, unit_ai_system, difficulty_settings_system};
 use campaign::{campaign_system, Campaign};
+use coordination::{squad_management_system, formation_movement_system, communication_system, advanced_tactical_ai_system};
 
 fn main() {
     App::new()
@@ -50,6 +53,7 @@ fn main() {
         .add_systems(Update, setup_game.run_if(resource_exists::<GameAssets>()).run_if(not(resource_exists::<GameSetupComplete>())).run_if(not_in_menu_phase))
         .add_systems(Update, main_menu_system)
         .add_systems(Update, mission_briefing_system)
+        .add_systems(Update, victory_defeat_system)
         .add_systems(Update, (
             camera_control_system,
             unit_selection_system,
@@ -61,8 +65,13 @@ fn main() {
             ai_director_system,
             wave_spawner_system,
             unit_ai_system,
+            squad_management_system,
+            formation_movement_system,
+            communication_system,
+            advanced_tactical_ai_system,
             pathfinding_system,
             movement_system,
+            difficulty_settings_system,
         ).run_if(resource_exists::<GameSetupComplete>()))
         .add_systems(Update, (
             combat_system,

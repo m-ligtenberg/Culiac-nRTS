@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use crate::components::*;
 use crate::resources::*;
 use crate::utils::world_to_iso;
+use crate::unit_systems::{configure_unit_stats, get_unit_abilities, get_unit_emoji, get_unit_color, apply_weapon_upgrades};
 
 // ==================== UNIT SPAWNING FUNCTIONS ====================
 
@@ -12,30 +13,37 @@ pub fn spawn_unit(
     position: Vec3,
     game_assets: &Res<GameAssets>
 ) {
-    let (health, damage, range, speed, weapon, armor) = match (&unit_type, &faction) {
-        // Cartel units
-        (UnitType::Sicario, Faction::Cartel) => (80.0, 25.0, 120.0, 80.0, WeaponType::BasicRifle, ArmorType::LightVest),
-        (UnitType::Enforcer, Faction::Cartel) => (120.0, 35.0, 100.0, 70.0, WeaponType::AssaultRifle, ArmorType::TacticalVest),
-        
-        // Military units  
-        (UnitType::Soldier, Faction::Military) => (100.0, 30.0, 110.0, 75.0, WeaponType::StandardIssue, ArmorType::TacticalVest),
-        (UnitType::SpecialForces, Faction::Military) => (140.0, 40.0, 130.0, 85.0, WeaponType::TacticalRifle, ArmorType::HeavyArmor),
-        (UnitType::Vehicle, Faction::Military) => (200.0, 50.0, 150.0, 60.0, WeaponType::VehicleWeapons, ArmorType::VehicleArmor),
-        
-        // Special cases
-        (UnitType::Roadblock, _) => (150.0, 0.0, 0.0, 0.0, WeaponType::BasicRifle, ArmorType::None),
-        _ => (100.0, 30.0, 100.0, 70.0, WeaponType::BasicRifle, ArmorType::None), // Default
+    // Create base unit with default stats
+    let mut unit = Unit {
+        health: 100.0,
+        max_health: 100.0,
+        faction: faction.clone(),
+        unit_type: unit_type.clone(),
+        damage: 30.0,
+        range: 100.0,
+        movement_speed: 40.0,
+        target: None,
+        attack_cooldown: Timer::from_seconds(1.0, TimerMode::Once),
+        experience: 0,
+        kills: 0,
+        veterancy_level: VeterancyLevel::Recruit,
+        equipment: Equipment {
+            weapon: WeaponType::BasicRifle,
+            armor: ArmorType::None,
+            upgrades: vec![],
+        },
     };
-
-    let (sprite_handle, unit_color, emoji) = match unit_type {
-        UnitType::Sicario => (&game_assets.sicario_sprite, Color::rgb(0.8, 0.2, 0.2), "🔫"),
-        UnitType::Enforcer => (&game_assets.enforcer_sprite, Color::rgb(0.6, 0.1, 0.1), "⚔️"),
-        UnitType::Ovidio => (&game_assets.ovidio_sprite, Color::rgb(1.0, 0.8, 0.0), "👑"),
-        UnitType::Soldier => (&game_assets.soldier_sprite, Color::rgb(0.2, 0.6, 0.2), "🪖"),
-        UnitType::SpecialForces => (&game_assets.special_forces_sprite, Color::rgb(0.1, 0.8, 0.1), "🎯"),
-        UnitType::Vehicle => (&game_assets.vehicle_sprite, Color::rgb(0.1, 0.4, 0.1), "🚗"),
-        UnitType::Roadblock => (&game_assets.roadblock_sprite, Color::rgb(0.8, 0.5, 0.2), "🚧"),
-    };
+    
+    // Configure unit stats based on type and faction
+    configure_unit_stats(&mut unit, &unit_type, &faction);
+    
+    // Apply weapon upgrades
+    apply_weapon_upgrades(&mut unit);
+    
+    // Get visual properties
+    let sprite_handle = get_sprite_handle(&unit_type, game_assets);
+    let unit_color = get_unit_color(&unit_type, &faction);
+    let emoji = get_unit_emoji(&unit_type);
 
     let iso_position = world_to_iso(position);
     
@@ -51,28 +59,10 @@ pub fn spawn_unit(
             transform: Transform::from_translation(iso_position),
             ..default()
         },
-        Unit {
-            health,
-            max_health: health,
-            faction: faction.clone(),
-            unit_type: unit_type.clone(),
-            damage,
-            range,
-            movement_speed: speed,
-            target: None,
-            attack_cooldown: Timer::from_seconds(1.0, TimerMode::Once),
-            experience: 0,
-            kills: 0,
-            veterancy_level: VeterancyLevel::Recruit,
-            equipment: Equipment {
-                weapon,
-                armor,
-                upgrades: vec![],
-            },
-        },
+        unit.clone(),
         Movement {
             target_position: None,
-            speed,
+            speed: unit.movement_speed,
         },
         AnimatedSprite {
             animation_timer: Timer::from_seconds(2.0, TimerMode::Repeating),
@@ -89,7 +79,7 @@ pub fn spawn_unit(
             path: Vec::new(),
             current_waypoint: 0,
             avoidance_radius: 40.0,
-            max_speed: speed,
+            max_speed: unit.movement_speed,
             stuck_timer: 0.0,
         },
     ));
@@ -101,6 +91,12 @@ pub fn spawn_unit(
         commands.entity(entity).insert(Obstacle {
             radius: 50.0,
         });
+    }
+    
+    // Add unit abilities based on type
+    let abilities = get_unit_abilities(&unit_type);
+    for ability in abilities {
+        commands.entity(entity).insert(ability);
     }
 
     // Emoji overlay for clear unit identification
@@ -121,6 +117,24 @@ pub fn spawn_unit(
 
     // Add health bar
     spawn_health_bar(commands, entity, iso_position);
+}
+
+fn get_sprite_handle(unit_type: &UnitType, game_assets: &Res<GameAssets>) -> Handle<Image> {
+    match unit_type {
+        UnitType::Sicario => game_assets.sicario_sprite.clone(),
+        UnitType::Enforcer => game_assets.enforcer_sprite.clone(),
+        UnitType::Sniper => game_assets.sicario_sprite.clone(), // Reuse for now
+        UnitType::HeavyGunner => game_assets.enforcer_sprite.clone(), // Reuse for now
+        UnitType::Medic => game_assets.sicario_sprite.clone(), // Reuse for now
+        UnitType::Ovidio => game_assets.ovidio_sprite.clone(),
+        UnitType::Roadblock => game_assets.roadblock_sprite.clone(),
+        UnitType::Soldier => game_assets.soldier_sprite.clone(),
+        UnitType::SpecialForces => game_assets.special_forces_sprite.clone(),
+        UnitType::Tank => game_assets.vehicle_sprite.clone(), // Reuse for now
+        UnitType::Helicopter => game_assets.vehicle_sprite.clone(), // Reuse for now
+        UnitType::Engineer => game_assets.soldier_sprite.clone(), // Reuse for now
+        UnitType::Vehicle => game_assets.vehicle_sprite.clone(),
+    }
 }
 
 pub fn spawn_health_bar(commands: &mut Commands, owner: Entity, position: Vec3) {

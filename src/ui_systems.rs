@@ -5,15 +5,18 @@ use crate::resources::*;
 use crate::utils::play_tactical_sound;
 use crate::campaign::Campaign;
 use crate::save_system::{save_game, load_game, has_save_file};
+use crate::campaign::{get_objective_summary, MissionConfig};
 
 // ==================== UI UPDATE SYSTEMS ====================
 
 pub fn ui_update_system(
     game_state: Res<GameState>,
+    ai_director: Res<AiDirector>,
     unit_query: Query<&Unit>,
-    mut status_query: Query<&mut Text, (With<StatusText>, Without<WaveText>, Without<ScoreText>)>,
-    mut wave_query: Query<&mut Text, (With<WaveText>, Without<StatusText>, Without<ScoreText>)>,
-    mut score_query: Query<&mut Text, (With<ScoreText>, Without<StatusText>, Without<WaveText>)>,
+    mut status_query: Query<&mut Text, (With<StatusText>, Without<WaveText>, Without<ScoreText>, Without<DifficultyDisplay>)>,
+    mut wave_query: Query<&mut Text, (With<WaveText>, Without<StatusText>, Without<ScoreText>, Without<DifficultyDisplay>)>,
+    mut score_query: Query<&mut Text, (With<ScoreText>, Without<StatusText>, Without<WaveText>, Without<DifficultyDisplay>)>,
+    mut difficulty_query: Query<&mut Text, (With<DifficultyDisplay>, Without<StatusText>, Without<WaveText>, Without<ScoreText>)>,
 ) {
     // Count units by faction
     let cartel_count = unit_query.iter().filter(|u| u.faction == Faction::Cartel && u.health > 0.0).count();
@@ -37,6 +40,8 @@ pub fn ui_update_system(
                 GamePhase::BlockConvoy => "🚧 Phase: Block Convoy",
                 GamePhase::ApplyPressure => "🔥 Phase: Apply Pressure",
                 GamePhase::HoldTheLine => "🛡️ Phase: Hold The Line",
+                GamePhase::Victory => "🏆 VICTORY!",
+                GamePhase::Defeat => "💀 DEFEAT!",
                 GamePhase::GameOver => "🏁 Mission Complete",
             }
         };
@@ -56,6 +61,17 @@ pub fn ui_update_system(
         text.sections[0].value = format!("Score: Cartel {} - Military {}", 
             game_state.cartel_score, 
             game_state.military_score
+        );
+    }
+    
+    // Update difficulty display
+    if let Ok(mut text) = difficulty_query.get_single_mut() {
+        let adaptive_status = if ai_director.adaptive_difficulty { "AUTO" } else { "MANUAL" };
+        text.sections[0].value = format!(
+            "Difficulty: {:.1} ({}) | Performance: {:.0}%\nD=Toggle | F1-F4=Set Level",
+            ai_director.intensity_level,
+            adaptive_status,
+            ai_director.player_performance * 100.0
         );
     }
 }
@@ -879,6 +895,303 @@ fn create_load_menu_ui(commands: &mut Commands) {
     });
 }
 
+// ==================== VICTORY/DEFEAT SYSTEM ====================
+
+pub fn victory_defeat_system(
+    mut commands: Commands,
+    mut game_state: ResMut<GameState>,
+    campaign: Res<Campaign>,
+    input: Res<Input<KeyCode>>,
+    result_query: Query<Entity, Or<(With<VictoryScreen>, With<DefeatScreen>)>>,
+) {
+    match game_state.game_phase {
+        GamePhase::Victory => {
+            // Remove any existing result UI
+            for entity in result_query.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
+            
+            // Create victory screen
+            create_victory_screen(&mut commands, &game_state, &campaign);
+            
+            // Handle input to continue
+            if input.just_pressed(KeyCode::Space) || input.just_pressed(KeyCode::Return) {
+                advance_campaign_or_end(&mut game_state, &campaign);
+            } else if input.just_pressed(KeyCode::Escape) {
+                game_state.game_phase = GamePhase::MainMenu;
+                play_tactical_sound("radio", "Returning to main menu...");
+            }
+        },
+        GamePhase::Defeat => {
+            // Remove any existing result UI
+            for entity in result_query.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
+            
+            // Create defeat screen
+            create_defeat_screen(&mut commands, &game_state, &campaign);
+            
+            // Handle input to continue
+            if input.just_pressed(KeyCode::Space) || input.just_pressed(KeyCode::Return) {
+                // On defeat, return to main menu or retry
+                game_state.game_phase = GamePhase::MainMenu;
+                play_tactical_sound("radio", "Operation terminated. Regrouping...");
+            } else if input.just_pressed(KeyCode::Escape) {
+                game_state.game_phase = GamePhase::MainMenu;
+                play_tactical_sound("radio", "Returning to main menu...");
+            }
+        },
+        _ => {
+            // Clean up any lingering result UI when not in victory/defeat phases
+            for entity in result_query.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
+    }
+}
+
+fn create_victory_screen(commands: &mut Commands, game_state: &GameState, campaign: &Campaign) {
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            background_color: BackgroundColor(Color::rgba(0.0, 0.3, 0.0, 0.95)),
+            ..default()
+        },
+        VictoryScreen,
+    )).with_children(|parent| {
+        // Victory title
+        parent.spawn((
+            TextBundle::from_section(
+                "🏆 ¡VICTORIA! 🏆",
+                TextStyle {
+                    font_size: 64.0,
+                    color: Color::rgb(1.0, 0.8, 0.0),
+                    ..default()
+                },
+            ),
+            MissionResultText,
+        ));
+        
+        // Mission name
+        let mission_config = MissionConfig::get_mission_config(&campaign.progress.current_mission);
+        parent.spawn(TextBundle::from_section(
+            format!("Mission: {} Complete", mission_config.name),
+            TextStyle {
+                font_size: 32.0,
+                color: Color::WHITE,
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::top(Val::Px(20.0)),
+            ..default()
+        }));
+        
+        // Historical context
+        parent.spawn(TextBundle::from_section(
+            "Historical Outcome: The Sinaloa Cartel successfully\npressured the Mexican government to release Ovidio Guzmán.\nThis event became known as 'El Culiacanazo' or 'Black Thursday'.",
+            TextStyle {
+                font_size: 20.0,
+                color: Color::rgb(0.9, 0.9, 0.9),
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::vertical(Val::Px(30.0)),
+            max_width: Val::Px(800.0),
+            ..default()
+        }));
+        
+        // Objectives summary
+        parent.spawn(TextBundle::from_section(
+            "📊 MISSION OBJECTIVES:",
+            TextStyle {
+                font_size: 24.0,
+                color: Color::rgb(0.3, 0.8, 1.0),
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::top(Val::Px(20.0)),
+            ..default()
+        }));
+        
+        parent.spawn(TextBundle::from_section(
+            get_objective_summary(campaign),
+            TextStyle {
+                font_size: 18.0,
+                color: Color::WHITE,
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::all(Val::Px(10.0)),
+            ..default()
+        }));
+        
+        // Score summary
+        parent.spawn(TextBundle::from_section(
+            format!("Final Score: {} | Time: {:.1}s", 
+                game_state.cartel_score, 
+                game_state.mission_timer
+            ),
+            TextStyle {
+                font_size: 22.0,
+                color: Color::rgb(0.0, 1.0, 0.0),
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::top(Val::Px(30.0)),
+            ..default()
+        }));
+        
+        // Continue instructions
+        parent.spawn(TextBundle::from_section(
+            "Press SPACE to continue | ESC for main menu",
+            TextStyle {
+                font_size: 18.0,
+                color: Color::rgb(0.7, 0.7, 0.7),
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::top(Val::Px(40.0)),
+            ..default()
+        }));
+    });
+}
+
+fn create_defeat_screen(commands: &mut Commands, game_state: &GameState, campaign: &Campaign) {
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            background_color: BackgroundColor(Color::rgba(0.3, 0.0, 0.0, 0.95)),
+            ..default()
+        },
+        DefeatScreen,
+    )).with_children(|parent| {
+        // Defeat title
+        parent.spawn((
+            TextBundle::from_section(
+                "💀 MISIÓN FALLIDA 💀",
+                TextStyle {
+                    font_size: 64.0,
+                    color: Color::rgb(1.0, 0.3, 0.3),
+                    ..default()
+                },
+            ),
+            MissionResultText,
+        ));
+        
+        // Mission name
+        let mission_config = MissionConfig::get_mission_config(&campaign.progress.current_mission);
+        parent.spawn(TextBundle::from_section(
+            format!("Mission: {} Failed", mission_config.name),
+            TextStyle {
+                font_size: 32.0,
+                color: Color::WHITE,
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::top(Val::Px(20.0)),
+            ..default()
+        }));
+        
+        // Failure context
+        parent.spawn(TextBundle::from_section(
+            "The government forces succeeded in their objective.\nHowever, this simulation helps understand the complex\ndynamics that led to the actual historical outcome.",
+            TextStyle {
+                font_size: 20.0,
+                color: Color::rgb(0.9, 0.9, 0.9),
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::vertical(Val::Px(30.0)),
+            max_width: Val::Px(800.0),
+            ..default()
+        }));
+        
+        // Objectives summary
+        parent.spawn(TextBundle::from_section(
+            "📊 MISSION OBJECTIVES:",
+            TextStyle {
+                font_size: 24.0,
+                color: Color::rgb(0.3, 0.8, 1.0),
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::top(Val::Px(20.0)),
+            ..default()
+        }));
+        
+        parent.spawn(TextBundle::from_section(
+            get_objective_summary(campaign),
+            TextStyle {
+                font_size: 18.0,
+                color: Color::WHITE,
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::all(Val::Px(10.0)),
+            ..default()
+        }));
+        
+        // Score summary
+        parent.spawn(TextBundle::from_section(
+            format!("Final Score: {} | Survived: {:.1}s", 
+                game_state.cartel_score, 
+                game_state.mission_timer
+            ),
+            TextStyle {
+                font_size: 22.0,
+                color: Color::rgb(1.0, 0.5, 0.5),
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::top(Val::Px(30.0)),
+            ..default()
+        }));
+        
+        // Continue instructions
+        parent.spawn(TextBundle::from_section(
+            "Press SPACE to try again | ESC for main menu",
+            TextStyle {
+                font_size: 18.0,
+                color: Color::rgb(0.7, 0.7, 0.7),
+                ..default()
+            },
+        ).with_style(Style {
+            margin: UiRect::top(Val::Px(40.0)),
+            ..default()
+        }));
+    });
+}
+
+fn advance_campaign_or_end(game_state: &mut GameState, _campaign: &Campaign) {
+    // For now, return to main menu after victory
+    // In the future, this could advance to the next mission
+    game_state.game_phase = GamePhase::MainMenu;
+    play_tactical_sound("radio", "Mission complete. Ready for next operation...");
+    
+    // Reset mission timer for potential replay
+    game_state.mission_timer = 0.0;
+}
+
 // ==================== MINIMAP SYSTEM ====================
 
 pub fn minimap_system(
@@ -971,6 +1284,22 @@ fn assign_formation_positions(
                         let row = (i + 1) / 2;
                         Vec3::new(side * spacing * 0.7, -(row as f32) * spacing * 0.5, 0.0)
                     }
+                },
+                FormationType::Flanking => {
+                    // Split formation for flanking
+                    let side = if i < unit_count / 2 { -1.0 } else { 1.0 };
+                    let pos_in_side = if i < unit_count / 2 { i } else { i - unit_count / 2 };
+                    Vec3::new(side * spacing * 1.5, (pos_in_side as f32) * spacing * 0.5, 0.0)
+                },
+                FormationType::Overwatch => {
+                    // Supporting positions with good fields of fire
+                    let x_offset = (i as f32 - (unit_count as f32 - 1.0) / 2.0) * spacing * 1.2;
+                    Vec3::new(x_offset, spacing * 0.8, 0.0)
+                },
+                FormationType::Retreat => {
+                    // Staggered withdrawal formation
+                    let x_offset = (i as f32 - (unit_count as f32 - 1.0) / 2.0) * spacing * 0.8;
+                    Vec3::new(x_offset, -(i as f32 * spacing * 0.3), 0.0)
                 },
             };
             
