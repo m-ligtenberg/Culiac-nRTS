@@ -36,3 +36,6 @@ screenshots/
 # Backup files
 *_backup.*
 *.bak
+
+#claude
+.claude
