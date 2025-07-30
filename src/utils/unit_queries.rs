@@ -150,7 +150,7 @@ pub fn is_unit_type_alive(
     unit_query.iter().any(|unit| {
         unit.unit_type == unit_type
             && unit.health > 0.0
-            && faction.as_ref().map_or(true, |f| unit.faction == *f)
+            && faction.as_ref().is_none_or(|f| unit.faction == *f)
     })
 }
 
@@ -165,7 +165,7 @@ pub fn find_units_of_type(
         .filter(|(_, unit, _)| {
             unit.unit_type == unit_type
                 && unit.health > 0.0
-                && faction.as_ref().map_or(true, |f| unit.faction == *f)
+                && faction.as_ref().is_none_or(|f| unit.faction == *f)
         })
         .map(|(entity, unit, transform)| (entity, transform.translation, unit.health))
         .collect()
@@ -214,7 +214,7 @@ pub fn get_units_by_distance(
     let mut units: Vec<_> = unit_query
         .iter()
         .filter(|(_, unit, _)| {
-            unit.health > 0.0 && faction_filter.as_ref().map_or(true, |f| unit.faction == *f)
+            unit.health > 0.0 && faction_filter.as_ref().is_none_or(|f| unit.faction == *f)
         })
         .map(|(entity, unit, transform)| {
             let distance = position.distance(transform.translation);

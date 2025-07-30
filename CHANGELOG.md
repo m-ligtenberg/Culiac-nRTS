@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-01-30
+
+### Added - Phase 6A: Enhanced Political Dynamics & Multiplayer Foundation
+- **Political Pressure System**: Comprehensive government decision-making mechanics with stability tracking
+  - Government Stability: Dynamic political will calculation based on casualties, media attention, and operation duration
+  - Public Opinion System: Social media influence affects government and cartel support levels
+  - Political Decision Thresholds: Realistic government capitulation mechanics leading to historical outcome
+  - Active Politicians: President, Defense Minister, Interior Minister, State Governor with individual pressure levels
+- **Social Media Influence System**: Real-time viral content generation and hashtag trending
+  - Viral Content Generation: Combat footage, civilian displacement, property damage content with sentiment analysis
+  - Hashtag Trends: Dynamic trending topics (#Culiacan, #OvidioGuzman, #EndTheViolence) with engagement metrics
+  - International Coverage: Media attention affects international pressure on government
+  - Twitter Sentiment & Facebook Engagement: Social media metrics influencing public opinion
+- **Multiplayer Networking Foundation**: Complete infrastructure for 4 game modes
+  - Asymmetric Mode: Government vs Cartel (2-8 players) with role-based gameplay
+  - Historical Mode: Recreate exact Oct 17, 2019 scenario with historical constraints
+  - Cooperative Mode: Team-based survival against AI with shared objectives
+  - Competitive Mode: Multiple factions competing for territorial control
+  - Authentication Integration: Player sessions using existing OAuth system (Google, GitHub, Discord)
+  - Network Message System: Real-time synchronization of game state across clients
+- **Real-time Political UI**: Live display of political status with color-coded indicators
+  - Government Stability Meter: Visual representation of political will (Green/Yellow/Red)
+  - Media Attention Tracker: Shows international coverage and pressure levels
+  - Casualty Counter: Real-time civilian and military casualty tracking
+  - Operation Duration: Live timer showing elapsed operation time
+  - Recent Events Feed: Latest political developments and government responses
+
+### Enhanced
+- **Campaign System**: Integrated with political pressure mechanics affecting mission outcomes
+- **Government Decision System**: AI government responds realistically to political pressure
+- **Authentication System**: Extended with multiplayer session management
+- **UI System**: Added political status panels with live updates
+
+### Technical
+- **Political System Plugin**: New modular system with 5 integrated sub-systems
+- **Multiplayer System Plugin**: Network infrastructure with session management
+- **Social Media Resources**: Hashtag trends, viral content tracking, engagement metrics
+- **Network Manager**: Client-server architecture with authentication integration
+- **Political UI Components**: Real-time status panels with dynamic color coding
+
 ## [0.2.0] - 2025-01-30
 
 ### Added - Phase 4C: Environmental Systems

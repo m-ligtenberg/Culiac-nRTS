@@ -78,7 +78,7 @@ impl SpatialGrid {
         let cell = GridCell::from_position(position, self.cell_size);
         self.units
             .entry(cell)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push((entity, position, max_range));
     }
 

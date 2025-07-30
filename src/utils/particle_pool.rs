@@ -101,7 +101,7 @@ impl ParticlePool {
                 .spawn((
                     Text2dBundle {
                         text: Text::from_section(
-                            format!("-{:.0}", damage),
+                            format!("-{damage:.0}"),
                             TextStyle {
                                 font_size: 16.0,
                                 color: Color::RED,

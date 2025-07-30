@@ -30,7 +30,7 @@ pub fn spawn_explosion_particles(commands: &mut Commands, position: Vec3, intens
     let iso_position = world_to_iso(position);
     let particle_count = (intensity * 0.1) as i32;
 
-    for i in 0..particle_count.max(3).min(12) {
+    for i in 0..particle_count.clamp(3, 12) {
         let angle = (i as f32 / particle_count as f32) * std::f32::consts::PI * 2.0;
         let speed = intensity * 0.5;
         let offset = Vec3::new(angle.cos() * 20.0, angle.sin() * 20.0, 0.0);
@@ -92,7 +92,7 @@ pub fn spawn_damage_numbers(
     commands.spawn((
         Text2dBundle {
             text: Text::from_section(
-                format!("{:.0}", damage),
+                format!("{damage:.0}"),
                 TextStyle {
                     font_size,
                     color,
@@ -116,7 +116,7 @@ pub fn spawn_healing_indicator(commands: &mut Commands, position: Vec3, healing:
     commands.spawn((
         Text2dBundle {
             text: Text::from_section(
-                format!("+{:.0}", healing),
+                format!("+{healing:.0}"),
                 TextStyle {
                     font_size: 18.0,
                     color: Color::rgb(0.2, 1.0, 0.2), // Bright green
@@ -166,7 +166,7 @@ pub fn spawn_bullet_trail(commands: &mut Commands, start_pos: Vec3, end_pos: Vec
     let distance = iso_start.distance(iso_end);
     let trail_count = (distance / 20.0) as i32;
 
-    for i in 0..trail_count.max(2).min(8) {
+    for i in 0..trail_count.clamp(2, 8) {
         let progress = i as f32 / trail_count as f32;
         let position = iso_start + direction * distance * progress;
 
@@ -219,7 +219,7 @@ pub fn spawn_ability_effect(
         "suppressive_fire" => {
             // Multiple rapid fire effects in area
             let particle_count = (radius / 20.0) as i32;
-            for i in 0..particle_count.max(4).min(12) {
+            for i in 0..particle_count.clamp(4, 12) {
                 let angle = (i as f32 / particle_count as f32) * std::f32::consts::PI * 2.0;
                 let offset = Vec3::new(angle.cos() * radius * 0.7, angle.sin() * radius * 0.7, 0.0);
 
