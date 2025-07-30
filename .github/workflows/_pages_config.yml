@@ -1,0 +1,8 @@
+# Tell GitHub Pages to build with Jekyll
+markdown: kramdown
+theme: minima          # we override most styles via NES.css
+plugins:
+  - jekyll-feed       # optional RSS feed
+exclude:
+  - node_modules
+  - vendor
