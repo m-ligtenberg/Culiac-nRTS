@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use crate::components::*;
 use crate::resources::*;
+use crate::environmental_systems::EnvironmentalState;
 use crate::utils::{play_tactical_sound, world_to_iso, find_combat_pairs, apply_combat_damage, clear_invalid_targets, get_default_ability, get_ability_cooldown, get_ability_range, execute_ability_simple};
 use crate::spawners::{spawn_unit, spawn_health_bar};
 
@@ -382,13 +383,17 @@ fn calculate_avoidance_force(
 
 pub fn movement_system(
     time: Res<Time>,
+    environmental_state: Res<EnvironmentalState>,
     mut unit_query: Query<(&mut Transform, &Movement, &Unit)>,
 ) {
     for (mut transform, movement, unit) in unit_query.iter_mut() {
         if let Some(target_pos) = movement.target_position {
             let current_pos = transform.translation;
             let direction = (target_pos - current_pos).normalize();
-            let move_delta = direction * unit.movement_speed * time.delta_seconds();
+            
+            // Apply environmental movement modifier (weather affects movement speed)
+            let environmental_speed = unit.movement_speed * environmental_state.movement_modifier;
+            let move_delta = direction * environmental_speed * time.delta_seconds();
             
             // Check if we're close enough to the target
             if current_pos.distance(target_pos) > 5.0 {
@@ -404,11 +409,12 @@ pub fn combat_system(
     mut commands: Commands,
     mut unit_query: Query<(Entity, &mut Unit, &Transform)>,
     effect_query: Query<&AbilityEffect>,
+    environmental_state: Res<EnvironmentalState>,
     time: Res<Time>,
 ) {
     // Find combat pairs and calculate damage - prioritize assigned targets
     let units: Vec<_> = unit_query.iter().collect();
-    let combat_events = find_combat_pairs(&units);
+    let combat_events = find_combat_pairs(&units, environmental_state.visibility_modifier);
     
     // Apply combat damage and effects
     for (attacker, target, damage) in combat_events {

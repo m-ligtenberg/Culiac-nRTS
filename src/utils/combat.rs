@@ -53,13 +53,16 @@ pub fn update_veterancy_level(unit: &mut Unit) {
     };
 }
 
-pub fn find_combat_pairs(units: &[(Entity, &Unit, &Transform)]) -> Vec<(Entity, Entity, f32)> {
+pub fn find_combat_pairs(units: &[(Entity, &Unit, &Transform)], visibility_modifier: f32) -> Vec<(Entity, Entity, f32)> {
     let mut combat_events = Vec::new();
     
     for (i, (entity_a, unit_a, transform_a)) in units.iter().enumerate() {
         if unit_a.health <= 0.0 || !unit_a.attack_cooldown.finished() {
             continue;
         }
+        
+        // Apply environmental visibility modifier to detection range
+        let effective_range_a = unit_a.range * visibility_modifier;
         
         // Try to attack assigned target first
         if let Some(target_entity) = unit_a.target {
@@ -69,7 +72,7 @@ pub fn find_combat_pairs(units: &[(Entity, &Unit, &Transform)]) -> Vec<(Entity, 
                 // Check if target is valid (alive, enemy faction, in range)
                 if target_unit.health > 0.0 
                     && target_unit.faction != unit_a.faction 
-                    && transform_a.translation.distance(target_transform.translation) <= unit_a.range {
+                    && transform_a.translation.distance(target_transform.translation) <= effective_range_a {
                     combat_events.push((*entity_a, target_entity, unit_a.damage));
                     continue; // Skip general combat for this unit
                 }
@@ -84,12 +87,13 @@ pub fn find_combat_pairs(units: &[(Entity, &Unit, &Transform)]) -> Vec<(Entity, 
             }
             
             let distance = transform_a.translation.distance(transform_b.translation);
+            let effective_range_b = unit_b.range * visibility_modifier;
             
-            // Check if units are in range to attack each other
-            if distance <= unit_a.range {
+            // Check if units are in range to attack each other (weather reduces detection range)
+            if distance <= effective_range_a {
                 combat_events.push((*entity_a, *entity_b, unit_a.damage));
             }
-            if distance <= unit_b.range && unit_b.attack_cooldown.finished() {
+            if distance <= effective_range_b && unit_b.attack_cooldown.finished() {
                 combat_events.push((*entity_b, *entity_a, unit_b.damage));
             }
         }

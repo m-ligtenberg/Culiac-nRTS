@@ -12,6 +12,99 @@ pub struct Campaign {
     pub mission_timer: f32,
     pub objectives_completed: u32,
     pub current_objectives: Vec<ObjectiveStatus>,
+    pub political_pressure: PoliticalPressure,
+}
+
+// ==================== POLITICAL PRESSURE SYSTEM ====================
+
+#[derive(Clone, Debug)]
+pub struct PoliticalPressure {
+    pub civilian_impact: f32,      // Civilian casualties and displacement (0.0-1.0)
+    pub economic_disruption: f32,  // Business closures, blocked roads (0.0-1.0)
+    pub media_attention: f32,      // International coverage pressure (0.0-1.0)
+    pub political_families: f32,   // Pressure from wealthy/political families (0.0-1.0)
+    pub military_morale: f32,      // Government forces demoralization (0.0-1.0)
+    pub total_pressure: f32,       // Combined pressure score (0.0-1.0)
+}
+
+impl Default for PoliticalPressure {
+    fn default() -> Self {
+        Self {
+            civilian_impact: 0.1,     // Minor initial impact
+            economic_disruption: 0.05,
+            media_attention: 0.2,     // Event started with media coverage
+            political_families: 0.0,
+            military_morale: 0.0,
+            total_pressure: 0.0,
+        }
+    }
+}
+
+impl PoliticalPressure {
+    pub fn update_pressure(&mut self) {
+        // Calculate total pressure as weighted average
+        self.total_pressure = (
+            self.civilian_impact * 0.25 +
+            self.economic_disruption * 0.20 +
+            self.media_attention * 0.15 +
+            self.political_families * 0.25 +
+            self.military_morale * 0.15
+        ).clamp(0.0, 1.0);
+    }
+    
+    pub fn add_civilian_impact(&mut self, impact: f32) {
+        self.civilian_impact = (self.civilian_impact + impact * 0.1).clamp(0.0, 1.0);
+        println!("📰 Civilian casualties reported - Political pressure increasing: {:.1}%", 
+                self.civilian_impact * 100.0);
+    }
+    
+    pub fn add_economic_disruption(&mut self, disruption: f32) {
+        self.economic_disruption = (self.economic_disruption + disruption * 0.15).clamp(0.0, 1.0);
+        println!("💼 Economic disruption spreads - Business leaders demand action: {:.1}%", 
+                self.economic_disruption * 100.0);
+    }
+    
+    pub fn increase_media_attention(&mut self, attention: f32) {
+        self.media_attention = (self.media_attention + attention * 0.1).clamp(0.0, 1.0);
+        println!("📺 International media coverage intensifies - Global pressure: {:.1}%", 
+                self.media_attention * 100.0);
+    }
+    
+    pub fn apply_political_family_pressure(&mut self, pressure: f32) {
+        self.political_families = (self.political_families + pressure * 0.2).clamp(0.0, 1.0);
+        println!("🏛️ Political families demand resolution - Elite pressure: {:.1}%", 
+                self.political_families * 100.0);
+    }
+    
+    pub fn reduce_military_morale(&mut self, reduction: f32) {
+        self.military_morale = (self.military_morale + reduction * 0.12).clamp(0.0, 1.0);
+        println!("⚔️ Military casualties mount - Troop morale declining: {:.1}%", 
+                self.military_morale * 100.0);
+    }
+    
+    pub fn get_pressure_level(&self) -> PressureLevel {
+        match self.total_pressure {
+            0.0..=0.2 => PressureLevel::Minimal,
+            0.2..=0.4 => PressureLevel::Moderate,
+            0.4..=0.6 => PressureLevel::Significant,
+            0.6..=0.8 => PressureLevel::Critical,
+            _ => PressureLevel::Unbearable,
+        }
+    }
+    
+    pub fn get_government_response_modifier(&self) -> f32 {
+        // Higher pressure reduces government aggression
+        1.0 - (self.total_pressure * 0.4)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum PressureLevel {
+    Minimal,     // Government operates normally
+    Moderate,    // Some political discussions
+    Significant, // Cabinet meetings, media pressure
+    Critical,    // Presidential involvement, negotiations
+    Unbearable,  // Ceasefire orders, withdrawal
 }
 
 impl Default for Campaign {
@@ -21,6 +114,7 @@ impl Default for Campaign {
             mission_timer: 0.0,
             objectives_completed: 0,
             current_objectives: Vec::new(),
+            political_pressure: PoliticalPressure::default(),
         }
     }
 }
@@ -116,16 +210,144 @@ impl MissionConfig {
                     MissionObjective::EliminateEnemies(35),
                 ],
             },
+            // Phase 2 Missions  
+            MissionId::LasFloresiDefense => MissionConfig {
+                id: mission_id.clone(),
+                name: "Las Flores Defense",
+                description: "Establish defensive perimeters in Las Flores neighborhood while protecting civilians.",
+                time_limit: Some(240.0), // 4 minutes
+                enemy_spawn_rate: 1.1,
+                difficulty_modifier: 1.1,
+                objectives: vec![
+                    MissionObjective::ControlArea("Las Flores".to_string()),
+                    MissionObjective::DefendTarget("Ovidio".to_string()),
+                ],
+            },
+            MissionId::TierraBlancaRoadblocks => MissionConfig {
+                id: mission_id.clone(),
+                name: "Tierra Blanca Roadblocks", 
+                description: "Deploy coordinated roadblocks to cut off military reinforcement routes.",
+                time_limit: Some(360.0), // 6 minutes
+                enemy_spawn_rate: 1.15,
+                difficulty_modifier: 1.15,
+                objectives: vec![
+                    MissionObjective::ControlArea("Highway Access".to_string()),
+                    MissionObjective::EliminateEnemies(15),
+                ],
+            },
+            
+            // Phase 3 Missions
+            MissionId::CentroUrbanFight => MissionConfig {
+                id: mission_id.clone(),
+                name: "Centro Urban Battle",
+                description: "Battle for downtown Culiacán. Control government buildings and key intersections.",
+                time_limit: Some(480.0), // 8 minutes
+                enemy_spawn_rate: 1.3,
+                difficulty_modifier: 1.25,
+                objectives: vec![
+                    MissionObjective::ControlArea("City Center".to_string()),
+                    MissionObjective::EliminateEnemies(25),
+                ],
+            },
+            MissionId::LasQuintasSiege => MissionConfig {
+                id: mission_id.clone(),
+                name: "Las Quintas Siege",
+                description: "Secure wealthy Las Quintas district to apply pressure on political families.",
+                time_limit: Some(420.0), // 7 minutes
+                enemy_spawn_rate: 1.25,
+                difficulty_modifier: 1.3,
+                objectives: vec![
+                    MissionObjective::ControlArea("Las Quintas".to_string()),
+                    MissionObjective::SurviveTime(420.0),
+                ],
+            },
+            MissionId::AirportAssault => MissionConfig {
+                id: mission_id.clone(),
+                name: "Airport Control",
+                description: "Control Bachigualato Airport to secure escape routes and limit air support.",
+                time_limit: Some(540.0), // 9 minutes
+                enemy_spawn_rate: 1.4,
+                difficulty_modifier: 1.35,
+                objectives: vec![
+                    MissionObjective::ControlArea("Airport".to_string()),
+                    MissionObjective::EliminateEnemies(30),
+                ],
+            },
+            
+            // Phase 4 Missions
+            MissionId::GovernmentResponse => MissionConfig {
+                id: mission_id.clone(),
+                name: "Government Counter-Offensive",
+                description: "Military escalation reaches peak. Survive overwhelming government response.",
+                time_limit: Some(600.0), // 10 minutes
+                enemy_spawn_rate: 1.6,
+                difficulty_modifier: 1.4,
+                objectives: vec![
+                    MissionObjective::SurviveTime(600.0),
+                    MissionObjective::EliminateEnemies(40),
+                    MissionObjective::DefendTarget("Ovidio".to_string()),
+                ],
+            },
+            MissionId::CivilianEvacuation => MissionConfig {
+                id: mission_id.clone(),
+                name: "Civilian Protection",
+                description: "Protect civilian evacuation zones while maintaining humanitarian corridors.",
+                time_limit: Some(480.0), // 8 minutes  
+                enemy_spawn_rate: 1.3,
+                difficulty_modifier: 1.45,
+                objectives: vec![
+                    MissionObjective::ControlArea("Evacuation Zone".to_string()),
+                    MissionObjective::DefendTarget("Civilians".to_string()),
+                ],
+            },
+            MissionId::PoliticalNegotiation => MissionConfig {
+                id: mission_id.clone(),
+                name: "Political Pressure",
+                description: "Hold positions while behind-scenes political negotiations proceed.",
+                time_limit: Some(720.0), // 12 minutes
+                enemy_spawn_rate: 1.2,
+                difficulty_modifier: 1.5,
+                objectives: vec![
+                    MissionObjective::SurviveTime(720.0),
+                    MissionObjective::ControlArea("Strategic Points".to_string()),
+                ],
+            },
+            
+            // Phase 5 Missions
+            MissionId::CeasefireNegotiation => MissionConfig {
+                id: mission_id.clone(),
+                name: "Ceasefire Management", 
+                description: "Presidential ceasefire order arrives. Manage transition while maintaining advantage.",
+                time_limit: Some(300.0), // 5 minutes
+                enemy_spawn_rate: 0.8,
+                difficulty_modifier: 1.2,
+                objectives: vec![
+                    MissionObjective::SurviveTime(300.0),
+                    MissionObjective::DefendTarget("Ovidio".to_string()),
+                ],
+            },
+            MissionId::OrderedWithdrawal => MissionConfig {
+                id: mission_id.clone(),
+                name: "Ordered Withdrawal",
+                description: "Government forces ordered to withdraw. Ensure orderly retreat without casualties.",
+                time_limit: Some(240.0), // 4 minutes
+                enemy_spawn_rate: 0.6,
+                difficulty_modifier: 1.1,
+                objectives: vec![
+                    MissionObjective::ControlArea("Withdrawal Routes".to_string()),
+                    MissionObjective::DefendTarget("Ovidio".to_string()),
+                ],
+            },
             MissionId::Resolution => MissionConfig {
                 id: mission_id.clone(),
-                name: "Resolution",
-                description: "Final confrontation. Hold the line until government withdrawal.",
-                time_limit: None, // No time limit - fight until victory
-                enemy_spawn_rate: 2.0,
-                difficulty_modifier: 1.6,
+                name: "Victory Secured",
+                description: "Final mission complete. Ovidio's freedom secured through political pressure victory.",
+                time_limit: None, // No time limit - victory achieved
+                enemy_spawn_rate: 0.5,
+                difficulty_modifier: 1.0,
                 objectives: vec![
                     MissionObjective::DefendTarget("Ovidio".to_string()),
-                    MissionObjective::EliminateEnemies(50),
+                    MissionObjective::SurviveTime(180.0), // 3 minutes to secure victory
                 ],
             },
         }
@@ -137,6 +359,7 @@ impl MissionConfig {
 pub fn campaign_system(
     mut campaign: ResMut<Campaign>,
     game_state: Res<GameState>,
+    unit_query: Query<&Unit>,
     time: Res<Time>,
 ) {
     campaign.mission_timer += time.delta_seconds();
@@ -151,7 +374,28 @@ pub fn campaign_system(
         GamePhase::Victory | GamePhase::Defeat | GamePhase::GameOver => return, // No mission updates when game is over
     };
     
-    campaign.progress.current_mission = current_mission;
+    campaign.progress.current_mission = current_mission.clone();
+    
+    // Update political pressure based on current mission and events
+    update_political_pressure(&mut campaign.political_pressure, &current_mission, &game_state, &unit_query, time.delta_seconds());
+    
+    // Display pressure updates periodically
+    static mut PRESSURE_TIMER: f32 = 0.0;
+    unsafe {
+        PRESSURE_TIMER += time.delta_seconds();
+        if PRESSURE_TIMER > 45.0 { // Every 45 seconds
+            PRESSURE_TIMER = 0.0;
+            let pressure_level = campaign.political_pressure.get_pressure_level();
+            println!("🏛️ Political Pressure Status: {:?} ({:.1}% total)", 
+                    pressure_level, campaign.political_pressure.total_pressure * 100.0);
+            
+            match pressure_level {
+                PressureLevel::Critical => println!("📞 Presidential advisors urging immediate resolution"),
+                PressureLevel::Unbearable => println!("📞 BREAKING: Presidential intervention imminent - ceasefire likely"),
+                _ => {}
+            }
+        }
+    }
     
     // Check for mission completion
     if game_state.game_phase == GamePhase::GameOver && !game_state.ovidio_captured {
@@ -166,6 +410,64 @@ pub fn campaign_system(
         
         info!("✅ Mission completed! Score: {}, Time: {:.1}s", mission_score, campaign.mission_timer);
     }
+}
+
+fn update_political_pressure(
+    pressure: &mut PoliticalPressure,
+    mission_id: &MissionId,
+    game_state: &GameState,
+    unit_query: &Query<&Unit>,
+    delta_time: f32,
+) {
+    // Count casualties for pressure calculation
+    let military_dead = unit_query.iter().filter(|u| u.faction == Faction::Military && u.health <= 0.0).count();
+    let cartel_dead = unit_query.iter().filter(|u| u.faction == Faction::Cartel && u.health <= 0.0).count();
+    
+    // Mission-specific pressure increases
+    match mission_id {
+        MissionId::InitialRaid => {
+            pressure.increase_media_attention(delta_time * 0.5);
+        },
+        MissionId::UrbanWarfare => {
+            pressure.add_civilian_impact(delta_time * 0.3);
+            pressure.add_economic_disruption(delta_time * 0.4);
+        },
+        MissionId::LasFloresiDefense => {
+            pressure.add_civilian_impact(delta_time * 0.6); // Residential area
+        },
+        MissionId::TierraBlancaRoadblocks => {
+            pressure.add_economic_disruption(delta_time * 0.8); // Major disruption
+        },
+        MissionId::CentroUrbanFight => {
+            pressure.add_economic_disruption(delta_time * 0.7);
+            pressure.increase_media_attention(delta_time * 0.4);
+        },
+        MissionId::LasQuintasSiege => {
+            pressure.apply_political_family_pressure(delta_time * 1.0); // Wealthy families
+        },
+        MissionId::AirportAssault => {
+            pressure.increase_media_attention(delta_time * 0.6); // International attention
+        },
+        MissionId::GovernmentResponse => {
+            pressure.reduce_military_morale(delta_time * 0.5);
+        },
+        MissionId::CivilianEvacuation => {
+            pressure.add_civilian_impact(delta_time * 0.8); // Humanitarian crisis
+        },
+        MissionId::PoliticalNegotiation => {
+            // Pressure peaks during negotiations
+            pressure.apply_political_family_pressure(delta_time * 0.4);
+        },
+        _ => {}
+    }
+    
+    // Casualties increase military morale loss
+    if military_dead > 0 {
+        pressure.reduce_military_morale(military_dead as f32 * 0.1);
+    }
+    
+    // Update total pressure calculation
+    pressure.update_pressure();
 }
 
 fn calculate_mission_score(game_state: &GameState, completion_time: f32) -> u32 {
