@@ -38,4 +38,5 @@ screenshots/
 *.bak
 
 #claude
-.claude
+.claude/
+CLAUDE.md
