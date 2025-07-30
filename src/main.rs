@@ -30,12 +30,13 @@ use resources::{*, not_in_menu_phase};
 use systems::*;
 use ui::*;
 use game_systems::*;
-use ai::{ai_director_system, unit_ai_system, difficulty_settings_system};
+use ai::{ai_director_system, difficulty_settings_system};
 use campaign::{campaign_system, Campaign};
 use coordination::{squad_management_system, formation_movement_system, communication_system, advanced_tactical_ai_system};
 use audio_system::{setup_audio_system, background_music_system, radio_chatter_system, spatial_audio_system};
 use environmental_systems::{EnvironmentalState, EnvironmentalAmbientLight, update_environmental_time, update_ambient_lighting, spawn_weather_particles, update_weather_particles, trigger_weather_change};
 use config::{setup_config_system, config_hotkeys_system, performance_monitor_system};
+use utils::{setup_particle_pool, update_pooled_particles_system, setup_ai_optimizer, optimized_unit_ai_system, adaptive_ai_scheduler_system};
 
 fn main() {
     App::new()
@@ -57,7 +58,7 @@ fn main() {
         .init_resource::<Campaign>()
         .init_resource::<EnvironmentalState>()
         .init_resource::<EnvironmentalAmbientLight>()
-        .add_systems(Startup, (setup_config_system, setup_assets, setup_ui, setup_audio_system))
+        .add_systems(Startup, (setup_config_system, setup_assets, setup_ui, setup_audio_system, setup_particle_pool, setup_ai_optimizer))
         .add_systems(Update, setup_game.run_if(resource_exists::<GameAssets>()).run_if(not(resource_exists::<GameSetupComplete>())).run_if(not_in_menu_phase))
         .add_systems(Update, main_menu_system)
         .add_systems(Update, mission_briefing_system)
@@ -72,7 +73,8 @@ fn main() {
             campaign_system,
             ai_director_system,
             wave_spawner_system,
-            unit_ai_system,
+            optimized_unit_ai_system,
+            adaptive_ai_scheduler_system,
             squad_management_system,
             formation_movement_system,
             communication_system,
@@ -86,7 +88,7 @@ fn main() {
             ability_system,
             ability_effect_system,
             health_bar_system,
-            particle_system,
+            update_pooled_particles_system,
             damage_indicator_system,
             sprite_animation_system,
             movement_animation_system,

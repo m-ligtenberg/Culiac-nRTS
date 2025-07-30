@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use crate::components::*;
 use crate::resources::*;
 use crate::environmental_systems::EnvironmentalState;
-use crate::utils::{play_tactical_sound, world_to_iso, find_combat_pairs, apply_combat_damage, clear_invalid_targets, get_default_ability, get_ability_cooldown, get_ability_range, execute_ability_simple};
+use crate::utils::{play_tactical_sound, world_to_iso, find_combat_pairs_optimized, apply_combat_damage, clear_invalid_targets, get_default_ability, get_ability_cooldown, get_ability_range, execute_ability_simple};
 use crate::spawners::{spawn_unit, spawn_health_bar};
 
 // ==================== SETUP SYSTEMS ====================
@@ -412,9 +412,9 @@ pub fn combat_system(
     environmental_state: Res<EnvironmentalState>,
     time: Res<Time>,
 ) {
-    // Find combat pairs and calculate damage - prioritize assigned targets
+    // Find combat pairs and calculate damage - prioritize assigned targets (optimized)
     let units: Vec<_> = unit_query.iter().collect();
-    let combat_events = find_combat_pairs(&units, environmental_state.visibility_modifier);
+    let combat_events = find_combat_pairs_optimized(&units, environmental_state.visibility_modifier);
     
     // Apply combat damage and effects
     for (attacker, target, damage) in combat_events {

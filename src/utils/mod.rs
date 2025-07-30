@@ -6,6 +6,9 @@ pub mod particles;
 pub mod ui_builders;
 pub mod combat;
 pub mod abilities;
+pub mod spatial;
+pub mod particle_pool;
+pub mod ai_optimizer;
 
 // Re-export commonly used functions
 pub use formation::*;
@@ -14,6 +17,9 @@ pub use particles::*;
 pub use ui_builders::*;
 pub use combat::*;
 pub use abilities::*;
+pub use spatial::*;
+pub use particle_pool::*;
+pub use ai_optimizer::*;
 
 // ==================== SHARED UTILITY FUNCTIONS ====================
 
