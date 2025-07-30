@@ -22,6 +22,8 @@ mod utils;
 mod spawners;
 mod coordination;
 mod unit_systems;
+mod audio_system;
+mod environmental_systems;
 
 use resources::{*, not_in_menu_phase};
 use systems::*;
@@ -30,6 +32,8 @@ use game_systems::*;
 use ai::{ai_director_system, unit_ai_system, difficulty_settings_system};
 use campaign::{campaign_system, Campaign};
 use coordination::{squad_management_system, formation_movement_system, communication_system, advanced_tactical_ai_system};
+use audio_system::{setup_audio_system, background_music_system, radio_chatter_system, spatial_audio_system};
+use environmental_systems::{EnvironmentalState, EnvironmentalAmbientLight, update_environmental_time, update_ambient_lighting, spawn_weather_particles, update_weather_particles, trigger_weather_change};
 
 fn main() {
     App::new()
@@ -49,7 +53,9 @@ fn main() {
         .init_resource::<GameState>()
         .init_resource::<AiDirector>()
         .init_resource::<Campaign>()
-        .add_systems(Startup, (setup_assets, setup_ui))
+        .init_resource::<EnvironmentalState>()
+        .init_resource::<EnvironmentalAmbientLight>()
+        .add_systems(Startup, (setup_assets, setup_ui, setup_audio_system))
         .add_systems(Update, setup_game.run_if(resource_exists::<GameAssets>()).run_if(not(resource_exists::<GameSetupComplete>())).run_if(not_in_menu_phase))
         .add_systems(Update, main_menu_system)
         .add_systems(Update, mission_briefing_system)
@@ -85,6 +91,14 @@ fn main() {
             ui_update_system,
             game_phase_system,
             handle_input,
+            background_music_system,
+            radio_chatter_system,
+            spatial_audio_system,
+            update_environmental_time,
+            update_ambient_lighting,
+            spawn_weather_particles,
+            update_weather_particles,
+            trigger_weather_change,
         ).run_if(resource_exists::<GameSetupComplete>()))
         .run();
 }
