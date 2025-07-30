@@ -1,4 +1,5 @@
 use crate::auth::{AuthError, CreateUserRequest, User, UserRole};
+use oauth2::url::Url;
 use oauth2::{
     basic::BasicClient, reqwest::async_http_client, AuthUrl, AuthorizationCode, ClientId,
     ClientSecret, CsrfToken, PkceCodeChallenge, RedirectUrl, Scope, TokenResponse, TokenUrl,
@@ -6,7 +7,6 @@ use oauth2::{
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
-use url::Url;
 
 #[derive(Debug, Clone)]
 pub struct OAuthConfig {
@@ -51,22 +51,24 @@ impl OAuthConfig {
         let client_secret = env::var("GOOGLE_CLIENT_SECRET").ok();
         let redirect_url = env::var("GOOGLE_REDIRECT_URL").ok();
 
-        if let (Some(client_id), Some(client_secret), Some(redirect_url)) = 
-            (client_id, client_secret, redirect_url) {
-            
+        if let (Some(client_id), Some(client_secret), Some(redirect_url)) =
+            (client_id, client_secret, redirect_url)
+        {
             let client = BasicClient::new(
                 ClientId::new(client_id),
                 Some(ClientSecret::new(client_secret)),
                 AuthUrl::new("https://accounts.google.com/o/oauth2/auth".to_string())
                     .map_err(|_| AuthError::OAuthError("Invalid Google auth URL".to_string()))?,
                 Some(
-                    TokenUrl::new("https://oauth2.googleapis.com/token".to_string())
-                        .map_err(|_| AuthError::OAuthError("Invalid Google token URL".to_string()))?,
+                    TokenUrl::new("https://oauth2.googleapis.com/token".to_string()).map_err(
+                        |_| AuthError::OAuthError("Invalid Google token URL".to_string()),
+                    )?,
                 ),
             )
             .set_redirect_uri(
-                RedirectUrl::new(redirect_url.clone())
-                    .map_err(|_| AuthError::OAuthError("Invalid Google redirect URL".to_string()))?,
+                RedirectUrl::new(redirect_url.clone()).map_err(|_| {
+                    AuthError::OAuthError("Invalid Google redirect URL".to_string())
+                })?,
             );
 
             Ok(Some(GoogleConfig {
@@ -83,9 +85,9 @@ impl OAuthConfig {
         let client_secret = env::var("GITHUB_CLIENT_SECRET").ok();
         let redirect_url = env::var("GITHUB_REDIRECT_URL").ok();
 
-        if let (Some(client_id), Some(client_secret), Some(redirect_url)) = 
-            (client_id, client_secret, redirect_url) {
-            
+        if let (Some(client_id), Some(client_secret), Some(redirect_url)) =
+            (client_id, client_secret, redirect_url)
+        {
             let client = BasicClient::new(
                 ClientId::new(client_id),
                 Some(ClientSecret::new(client_secret)),
@@ -93,12 +95,15 @@ impl OAuthConfig {
                     .map_err(|_| AuthError::OAuthError("Invalid GitHub auth URL".to_string()))?,
                 Some(
                     TokenUrl::new("https://github.com/login/oauth/access_token".to_string())
-                        .map_err(|_| AuthError::OAuthError("Invalid GitHub token URL".to_string()))?,
+                        .map_err(|_| {
+                            AuthError::OAuthError("Invalid GitHub token URL".to_string())
+                        })?,
                 ),
             )
             .set_redirect_uri(
-                RedirectUrl::new(redirect_url.clone())
-                    .map_err(|_| AuthError::OAuthError("Invalid GitHub redirect URL".to_string()))?,
+                RedirectUrl::new(redirect_url.clone()).map_err(|_| {
+                    AuthError::OAuthError("Invalid GitHub redirect URL".to_string())
+                })?,
             );
 
             Ok(Some(GitHubConfig {
@@ -115,22 +120,24 @@ impl OAuthConfig {
         let client_secret = env::var("DISCORD_CLIENT_SECRET").ok();
         let redirect_url = env::var("DISCORD_REDIRECT_URL").ok();
 
-        if let (Some(client_id), Some(client_secret), Some(redirect_url)) = 
-            (client_id, client_secret, redirect_url) {
-            
+        if let (Some(client_id), Some(client_secret), Some(redirect_url)) =
+            (client_id, client_secret, redirect_url)
+        {
             let client = BasicClient::new(
                 ClientId::new(client_id),
                 Some(ClientSecret::new(client_secret)),
                 AuthUrl::new("https://discord.com/api/oauth2/authorize".to_string())
                     .map_err(|_| AuthError::OAuthError("Invalid Discord auth URL".to_string()))?,
                 Some(
-                    TokenUrl::new("https://discord.com/api/oauth2/token".to_string())
-                        .map_err(|_| AuthError::OAuthError("Invalid Discord token URL".to_string()))?,
+                    TokenUrl::new("https://discord.com/api/oauth2/token".to_string()).map_err(
+                        |_| AuthError::OAuthError("Invalid Discord token URL".to_string()),
+                    )?,
                 ),
             )
             .set_redirect_uri(
-                RedirectUrl::new(redirect_url.clone())
-                    .map_err(|_| AuthError::OAuthError("Invalid Discord redirect URL".to_string()))?,
+                RedirectUrl::new(redirect_url.clone()).map_err(|_| {
+                    AuthError::OAuthError("Invalid Discord redirect URL".to_string())
+                })?,
             );
 
             Ok(Some(DiscordConfig {
@@ -156,7 +163,7 @@ pub struct OAuthCallback {
 }
 
 // Google OAuth user info
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct GoogleUserInfo {
     pub id: String,
     pub email: String,
@@ -168,7 +175,7 @@ pub struct GoogleUserInfo {
 }
 
 // GitHub OAuth user info
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct GitHubUserInfo {
     pub id: u64,
     pub login: String,
@@ -178,7 +185,7 @@ pub struct GitHubUserInfo {
 }
 
 // Discord OAuth user info
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct DiscordUserInfo {
     pub id: String,
     pub username: String,
@@ -203,7 +210,10 @@ impl OAuthService {
 
     // Google OAuth methods
     pub fn google_auth_url(&self) -> Result<OAuthAuthorizationUrl, AuthError> {
-        let google_config = self.config.google.as_ref()
+        let google_config = self
+            .config
+            .google
+            .as_ref()
             .ok_or_else(|| AuthError::OAuthError("Google OAuth not configured".to_string()))?;
 
         let (pkce_challenge, _pkce_verifier) = PkceCodeChallenge::new_random_sha256();
@@ -223,7 +233,10 @@ impl OAuthService {
     }
 
     pub async fn google_exchange_code(&self, code: &str) -> Result<GoogleUserInfo, AuthError> {
-        let google_config = self.config.google.as_ref()
+        let google_config = self
+            .config
+            .google
+            .as_ref()
             .ok_or_else(|| AuthError::OAuthError("Google OAuth not configured".to_string()))?;
 
         let token_result = google_config
@@ -252,7 +265,10 @@ impl OAuthService {
 
     // GitHub OAuth methods
     pub fn github_auth_url(&self) -> Result<OAuthAuthorizationUrl, AuthError> {
-        let github_config = self.config.github.as_ref()
+        let github_config = self
+            .config
+            .github
+            .as_ref()
             .ok_or_else(|| AuthError::OAuthError("GitHub OAuth not configured".to_string()))?;
 
         let (auth_url, csrf_token) = github_config
@@ -268,7 +284,10 @@ impl OAuthService {
     }
 
     pub async fn github_exchange_code(&self, code: &str) -> Result<GitHubUserInfo, AuthError> {
-        let github_config = self.config.github.as_ref()
+        let github_config = self
+            .config
+            .github
+            .as_ref()
             .ok_or_else(|| AuthError::OAuthError("GitHub OAuth not configured".to_string()))?;
 
         let token_result = github_config
@@ -298,7 +317,10 @@ impl OAuthService {
 
     // Discord OAuth methods
     pub fn discord_auth_url(&self) -> Result<OAuthAuthorizationUrl, AuthError> {
-        let discord_config = self.config.discord.as_ref()
+        let discord_config = self
+            .config
+            .discord
+            .as_ref()
             .ok_or_else(|| AuthError::OAuthError("Discord OAuth not configured".to_string()))?;
 
         let (auth_url, csrf_token) = discord_config
@@ -315,7 +337,10 @@ impl OAuthService {
     }
 
     pub async fn discord_exchange_code(&self, code: &str) -> Result<DiscordUserInfo, AuthError> {
-        let discord_config = self.config.discord.as_ref()
+        let discord_config = self
+            .config
+            .discord
+            .as_ref()
             .ok_or_else(|| AuthError::OAuthError("Discord OAuth not configured".to_string()))?;
 
         let token_result = discord_config
@@ -352,8 +377,11 @@ pub fn google_user_to_create_request(user_info: GoogleUserInfo) -> CreateUserReq
     }
 }
 
-pub fn github_user_to_create_request(user_info: GitHubUserInfo) -> Result<CreateUserRequest, AuthError> {
-    let email = user_info.email
+pub fn github_user_to_create_request(
+    user_info: GitHubUserInfo,
+) -> Result<CreateUserRequest, AuthError> {
+    let email = user_info
+        .email
         .ok_or_else(|| AuthError::OAuthError("GitHub user has no public email".to_string()))?;
 
     Ok(CreateUserRequest {
@@ -363,8 +391,11 @@ pub fn github_user_to_create_request(user_info: GitHubUserInfo) -> Result<Create
     })
 }
 
-pub fn discord_user_to_create_request(user_info: DiscordUserInfo) -> Result<CreateUserRequest, AuthError> {
-    let email = user_info.email
+pub fn discord_user_to_create_request(
+    user_info: DiscordUserInfo,
+) -> Result<CreateUserRequest, AuthError> {
+    let email = user_info
+        .email
         .ok_or_else(|| AuthError::OAuthError("Discord user has no email".to_string()))?;
 
     Ok(CreateUserRequest {

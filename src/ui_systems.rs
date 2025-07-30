@@ -50,20 +50,20 @@ pub fn ui_update_system(
 
     // Update wave text
     if let Ok(mut text) = wave_query.get_single_mut() {
-        text.sections[0].value = format!("Wave: {} - Timer: {:.1}s", 
-            game_state.current_wave, 
+        text.sections[0].value = format!("Wave: {} - Timer: {:.1}s",
+            game_state.current_wave,
             game_state.mission_timer
         );
     }
 
     // Update score text
     if let Ok(mut text) = score_query.get_single_mut() {
-        text.sections[0].value = format!("Score: Cartel {} - Military {}", 
-            game_state.cartel_score, 
+        text.sections[0].value = format!("Score: Cartel {} - Military {}",
+            game_state.cartel_score,
             game_state.military_score
         );
     }
-    
+
     // Update difficulty display
     if let Ok(mut text) = difficulty_query.get_single_mut() {
         let adaptive_status = if ai_director.adaptive_difficulty { "AUTO" } else { "MANUAL" };
@@ -87,7 +87,7 @@ pub fn health_bar_system(
             if health_bar.owner == unit_entity {
                 // Update position
                 bar_transform.translation = unit_transform.translation + health_bar.offset;
-                
+
                 // Update health bar color and width based on health percentage
                 let health_percent = unit.health / unit.max_health;
                 let bar_color = if health_percent > 0.6 {
@@ -97,16 +97,16 @@ pub fn health_bar_system(
                 } else {
                     Color::rgb(0.8, 0.2, 0.2) // Red
                 };
-                
+
                 bar_sprite.color = bar_color;
-                
+
                 // Adjust bar width based on health (only for foreground bars)
                 if health_bar.offset.z > 0.15 { // Foreground bar
                     if let Some(ref mut size) = bar_sprite.custom_size {
                         size.x = 50.0 * health_percent;
                     }
                 }
-                
+
                 // Remove health bar if unit is dead
                 if unit.health <= 0.0 {
                     commands.entity(bar_entity).despawn();
@@ -114,13 +114,13 @@ pub fn health_bar_system(
             }
         }
     }
-    
+
     // Clean up health bars for dead units
     let living_units: std::collections::HashSet<Entity> = unit_query.iter()
         .filter(|(_, unit, _)| unit.health > 0.0)
         .map(|(entity, _, _)| entity)
         .collect();
-    
+
     for (bar_entity, _, _, health_bar) in health_bar_query.iter() {
         if !living_units.contains(&health_bar.owner) {
             commands.entity(bar_entity).despawn();
@@ -135,17 +135,17 @@ pub fn damage_indicator_system(
 ) {
     for (entity, mut transform, mut indicator, particle_effect) in damage_query.iter_mut() {
         indicator.lifetime.tick(time.delta());
-        
+
         // Use particle effect velocity if available, otherwise default upward movement
         if let Some(particle) = particle_effect {
             transform.translation += particle.velocity * time.delta_seconds();
         } else {
             transform.translation.y += 30.0 * time.delta_seconds();
         }
-        
+
         // Fade out over time for smooth disappearance (future enhancement)
         let _alpha = 1.0 - (indicator.lifetime.elapsed_secs() / indicator.lifetime.duration().as_secs_f32());
-        
+
         // Remove when expired
         if indicator.lifetime.finished() {
             commands.entity(entity).despawn();
@@ -160,10 +160,10 @@ pub fn particle_system(
 ) {
     for (entity, mut transform, mut particle) in particle_query.iter_mut() {
         particle.lifetime.tick(time.delta());
-        
+
         // Move particle
         transform.translation += particle.velocity * time.delta_seconds();
-        
+
         // Remove when expired
         if particle.lifetime.finished() {
             commands.entity(entity).despawn();
@@ -185,20 +185,20 @@ pub fn camera_control_system(
         warn!("Camera system: No camera found or multiple cameras detected");
         return;
     };
-    
+
     let mut movement = Vec3::ZERO;
-    
+
     // WASD camera movement
     if input.pressed(KeyCode::W) { movement.y += 1.0; }
     if input.pressed(KeyCode::S) { movement.y -= 1.0; }
     if input.pressed(KeyCode::A) { movement.x -= 1.0; }
     if input.pressed(KeyCode::D) { movement.x += 1.0; }
-    
+
     // Apply movement
     if movement != Vec3::ZERO {
         transform.translation += movement.normalize() * camera.pan_speed * time.delta_seconds();
     }
-    
+
     // Mouse wheel zoom
     for scroll in scroll_events.read() {
         let zoom_delta = -scroll.y * camera.zoom_speed;
@@ -223,42 +223,42 @@ pub fn unit_selection_system(
     selected_query: Query<Entity, With<Selected>>,
 ) {
     let window = windows.single();
-    
+
     // Handle left-click selection
     if mouse_button_input.just_pressed(MouseButton::Left) {
         let Ok((camera, camera_transform)) = camera_query.get_single() else {
             warn!("Unit selection: Camera not available for viewport conversion");
             return;
         };
-        
+
         if let Some(cursor_pos) = window.cursor_position() {
             if let Some(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
                 let click_pos = Vec3::new(world_pos.x, world_pos.y, 0.0);
-                
+
                 // Clear previous selection if not holding shift
                 if !keyboard_input.pressed(KeyCode::ShiftLeft) && !keyboard_input.pressed(KeyCode::ShiftRight) {
                     for entity in selected_query.iter() {
                         commands.entity(entity).remove::<Selected>();
                     }
                 }
-                
+
                 // Find closest unit to click position
                 let mut closest_unit = None;
                 let mut closest_distance = f32::INFINITY;
-                
+
                 for (entity, transform, unit, selected) in unit_queries.p0().iter() {
                     // Only select cartel units (player units)
                     if unit.faction != Faction::Cartel || unit.health <= 0.0 {
                         continue;
                     }
-                    
+
                     let distance = transform.translation.distance(click_pos);
                     if distance < 50.0 && distance < closest_distance {
                         closest_distance = distance;
                         closest_unit = Some((entity, selected.is_some()));
                     }
                 }
-                
+
                 // Select the closest unit
                 if let Some((entity, already_selected)) = closest_unit {
                     if !already_selected {
@@ -270,21 +270,21 @@ pub fn unit_selection_system(
             }
         }
     }
-    
+
     // Handle right-click commands (movement or attack)
     if mouse_button_input.just_pressed(MouseButton::Right) {
         if let Ok((camera, camera_transform)) = camera_query.get_single() {
             if let Some(cursor_pos) = window.cursor_position() {
             if let Some(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
                     let target_pos = Vec3::new(world_pos.x, world_pos.y, 0.0);
-                    
+
                     // Collect selected units
                     let selected_units: Vec<Entity> = selected_query.iter().collect();
-                    
+
                     if !selected_units.is_empty() {
                         // Check if right-clicking on an enemy unit for attack command
                         let target_enemy = find_enemy_at_position(target_pos, &unit_queries.p0());
-                        
+
                         if let Some(enemy_entity) = target_enemy {
                             // Attack command: assign enemy as target
                             assign_attack_targets(&selected_units, enemy_entity, &mut unit_queries.p1());
@@ -298,7 +298,7 @@ pub fn unit_selection_system(
                             } else {
                                 FormationType::Line
                             };
-                            
+
                             assign_formation_positions(&selected_units, target_pos, formation_type.clone(), &mut movement_query);
                             play_tactical_sound("movement", &format!("{} units moving in {:?} formation", selected_units.len(), formation_type));
                         }
@@ -318,7 +318,7 @@ pub fn selection_indicator_system(
     for (entity, _) in indicator_query.iter() {
         commands.entity(entity).despawn();
     }
-    
+
     // Create enhanced selection indicators for selected units
     for (_, transform, selected) in selected_query.iter() {
         // Outer selection ring (animated)
@@ -334,7 +334,7 @@ pub fn selection_indicator_system(
             },
             SelectionIndicator,
         ));
-        
+
         // Inner selection ring (solid)
         commands.spawn((
             SpriteBundle {
@@ -348,7 +348,7 @@ pub fn selection_indicator_system(
             },
             SelectionIndicator,
         ));
-        
+
         // Selection corners for better visibility
         for (x, y) in [(-15.0, 15.0), (15.0, 15.0), (-15.0, -15.0), (15.0, -15.0)] {
             commands.spawn((
@@ -378,7 +378,7 @@ pub fn target_indicator_system(
     for (entity, _) in target_indicator_query.iter() {
         commands.entity(entity).despawn();
     }
-    
+
     // Create target indicators for units with assigned targets
     for (unit, _) in unit_query.iter() {
         if let Some(target_entity) = unit.target {
@@ -397,7 +397,7 @@ pub fn target_indicator_system(
                     },
                     TargetIndicator,
                 ));
-                
+
                 // Vertical crosshair
                 commands.spawn((
                     SpriteBundle {
@@ -431,20 +431,20 @@ pub fn mission_briefing_system(
         for entity in briefing_query.iter() {
             commands.entity(entity).despawn_recursive();
         }
-        
+
         // Get current mission config
         let mission_config = crate::campaign::MissionConfig::get_mission_config(&campaign.progress.current_mission);
-        
+
         // Create mission briefing UI
         create_mission_briefing_ui(&mut commands, &mission_config);
-        
+
         // Check for input to start mission
         if input.just_pressed(KeyCode::Space) || input.just_pressed(KeyCode::Return) {
             // Clear briefing UI
             for entity in briefing_query.iter() {
                 commands.entity(entity).despawn_recursive();
             }
-            
+
             // Start the actual mission
             game_state.game_phase = GamePhase::Preparation;
             play_tactical_sound("radio", &format!("Mission: {} - Begin operation!", mission_config.name));
@@ -489,7 +489,7 @@ fn create_mission_briefing_ui(commands: &mut Commands, mission_config: &crate::c
             ),
             MissionTitle,
         ));
-        
+
         // Spacer
         parent.spawn(NodeBundle {
             style: Style {
@@ -498,7 +498,7 @@ fn create_mission_briefing_ui(commands: &mut Commands, mission_config: &crate::c
             },
             ..default()
         });
-        
+
         // Mission description
         parent.spawn((
             TextBundle::from_section(
@@ -514,7 +514,7 @@ fn create_mission_briefing_ui(commands: &mut Commands, mission_config: &crate::c
             }),
             MissionDescription,
         ));
-        
+
         // Spacer
         parent.spawn(NodeBundle {
             style: Style {
@@ -523,7 +523,7 @@ fn create_mission_briefing_ui(commands: &mut Commands, mission_config: &crate::c
             },
             ..default()
         });
-        
+
         // Objectives section
         parent.spawn((
             TextBundle::from_section(
@@ -536,7 +536,7 @@ fn create_mission_briefing_ui(commands: &mut Commands, mission_config: &crate::c
             ),
             MissionObjectives,
         ));
-        
+
         // List objectives
         for (i, objective) in mission_config.objectives.iter().enumerate() {
             let objective_text = match objective {
@@ -553,7 +553,7 @@ fn create_mission_briefing_ui(commands: &mut Commands, mission_config: &crate::c
                     format!("{}. Control {}", i + 1, area)
                 },
             };
-            
+
             parent.spawn(TextBundle::from_section(
                 objective_text,
                 TextStyle {
@@ -566,7 +566,7 @@ fn create_mission_briefing_ui(commands: &mut Commands, mission_config: &crate::c
                 ..default()
             }));
         }
-        
+
         // Time limit info
         if let Some(time_limit) = mission_config.time_limit {
             parent.spawn(NodeBundle {
@@ -576,7 +576,7 @@ fn create_mission_briefing_ui(commands: &mut Commands, mission_config: &crate::c
                 },
                 ..default()
             });
-            
+
             parent.spawn(TextBundle::from_section(
                 format!("⏰ Time Limit: {:.0} seconds", time_limit),
                 TextStyle {
@@ -586,7 +586,7 @@ fn create_mission_briefing_ui(commands: &mut Commands, mission_config: &crate::c
                 },
             ));
         }
-        
+
         // Instructions
         parent.spawn(NodeBundle {
             style: Style {
@@ -595,7 +595,7 @@ fn create_mission_briefing_ui(commands: &mut Commands, mission_config: &crate::c
             },
             ..default()
         });
-        
+
         parent.spawn(TextBundle::from_section(
             "Press SPACE or ENTER to begin mission",
             TextStyle {
@@ -621,10 +621,10 @@ pub fn main_menu_system(
             for entity in menu_query.iter() {
                 commands.entity(entity).despawn_recursive();
             }
-            
+
             // Create main menu UI
             create_main_menu_ui(&mut commands);
-            
+
             // Handle input
             if input.just_pressed(KeyCode::Key1) {
                 game_state.game_phase = GamePhase::MissionBriefing;
@@ -642,7 +642,7 @@ pub fn main_menu_system(
             if menu_query.is_empty() {
                 create_save_menu_ui(&mut commands);
             }
-            
+
             if input.just_pressed(KeyCode::Escape) {
                 game_state.game_phase = GamePhase::MainMenu;
             } else if input.just_pressed(KeyCode::Key1) {
@@ -661,7 +661,7 @@ pub fn main_menu_system(
             if menu_query.is_empty() {
                 create_load_menu_ui(&mut commands);
             }
-            
+
             if input.just_pressed(KeyCode::Escape) {
                 game_state.game_phase = GamePhase::MainMenu;
             } else if input.just_pressed(KeyCode::Key1) && has_save_file() {
@@ -719,7 +719,7 @@ fn create_main_menu_ui(commands: &mut Commands) {
             margin: UiRect::bottom(Val::Px(50.0)),
             ..default()
         }));
-        
+
         // Menu options
         parent.spawn(TextBundle::from_section(
             "1. New Campaign",
@@ -732,7 +732,7 @@ fn create_main_menu_ui(commands: &mut Commands) {
             margin: UiRect::all(Val::Px(10.0)),
             ..default()
         }));
-        
+
         let load_color = if has_save_file() { Color::WHITE } else { Color::rgb(0.5, 0.5, 0.5) };
         parent.spawn(TextBundle::from_section(
             if has_save_file() { "2. Load Campaign" } else { "2. Load Campaign (No Save Found)" },
@@ -745,7 +745,7 @@ fn create_main_menu_ui(commands: &mut Commands) {
             margin: UiRect::all(Val::Px(10.0)),
             ..default()
         }));
-        
+
         parent.spawn(TextBundle::from_section(
             "3. Save Current Game",
             TextStyle {
@@ -757,7 +757,7 @@ fn create_main_menu_ui(commands: &mut Commands) {
             margin: UiRect::all(Val::Px(10.0)),
             ..default()
         }));
-        
+
         // Instructions
         parent.spawn(TextBundle::from_section(
             "Press 1-3 to select option",
@@ -803,7 +803,7 @@ fn create_save_menu_ui(commands: &mut Commands) {
             margin: UiRect::bottom(Val::Px(40.0)),
             ..default()
         }));
-        
+
         parent.spawn(TextBundle::from_section(
             "1. Save Slot 1",
             TextStyle {
@@ -815,7 +815,7 @@ fn create_save_menu_ui(commands: &mut Commands) {
             margin: UiRect::all(Val::Px(15.0)),
             ..default()
         }));
-        
+
         parent.spawn(TextBundle::from_section(
             "Press 1 to save, ESC to cancel",
             TextStyle {
@@ -860,15 +860,15 @@ fn create_load_menu_ui(commands: &mut Commands) {
             margin: UiRect::bottom(Val::Px(40.0)),
             ..default()
         }));
-        
+
         let load_text = if has_save_file() {
             "1. Load Slot 1 (Available)"
         } else {
             "1. Load Slot 1 (Empty)"
         };
-        
+
         let load_color = if has_save_file() { Color::WHITE } else { Color::rgb(0.5, 0.5, 0.5) };
-        
+
         parent.spawn(TextBundle::from_section(
             load_text,
             TextStyle {
@@ -880,7 +880,7 @@ fn create_load_menu_ui(commands: &mut Commands) {
             margin: UiRect::all(Val::Px(15.0)),
             ..default()
         }));
-        
+
         parent.spawn(TextBundle::from_section(
             "Press 1 to load, ESC to cancel",
             TextStyle {
@@ -910,10 +910,10 @@ pub fn victory_defeat_system(
             for entity in result_query.iter() {
                 commands.entity(entity).despawn_recursive();
             }
-            
+
             // Create victory screen
             create_victory_screen(&mut commands, &game_state, &campaign);
-            
+
             // Handle input to continue
             if input.just_pressed(KeyCode::Space) || input.just_pressed(KeyCode::Return) {
                 advance_campaign_or_end(&mut game_state, &campaign);
@@ -927,10 +927,10 @@ pub fn victory_defeat_system(
             for entity in result_query.iter() {
                 commands.entity(entity).despawn_recursive();
             }
-            
+
             // Create defeat screen
             create_defeat_screen(&mut commands, &game_state, &campaign);
-            
+
             // Handle input to continue
             if input.just_pressed(KeyCode::Space) || input.just_pressed(KeyCode::Return) {
                 // On defeat, return to main menu or retry
@@ -981,7 +981,7 @@ fn create_victory_screen(commands: &mut Commands, game_state: &GameState, campai
             ),
             MissionResultText,
         ));
-        
+
         // Mission name
         let mission_config = MissionConfig::get_mission_config(&campaign.progress.current_mission);
         parent.spawn(TextBundle::from_section(
@@ -995,7 +995,7 @@ fn create_victory_screen(commands: &mut Commands, game_state: &GameState, campai
             margin: UiRect::top(Val::Px(20.0)),
             ..default()
         }));
-        
+
         // Historical context
         parent.spawn(TextBundle::from_section(
             "Historical Outcome: The Sinaloa Cartel successfully\npressured the Mexican government to release Ovidio Guzmán.\nThis event became known as 'El Culiacanazo' or 'Black Thursday'.",
@@ -1009,7 +1009,7 @@ fn create_victory_screen(commands: &mut Commands, game_state: &GameState, campai
             max_width: Val::Px(800.0),
             ..default()
         }));
-        
+
         // Objectives summary
         parent.spawn(TextBundle::from_section(
             "📊 MISSION OBJECTIVES:",
@@ -1022,7 +1022,7 @@ fn create_victory_screen(commands: &mut Commands, game_state: &GameState, campai
             margin: UiRect::top(Val::Px(20.0)),
             ..default()
         }));
-        
+
         parent.spawn(TextBundle::from_section(
             get_objective_summary(campaign),
             TextStyle {
@@ -1034,11 +1034,11 @@ fn create_victory_screen(commands: &mut Commands, game_state: &GameState, campai
             margin: UiRect::all(Val::Px(10.0)),
             ..default()
         }));
-        
+
         // Score summary
         parent.spawn(TextBundle::from_section(
-            format!("Final Score: {} | Time: {:.1}s", 
-                game_state.cartel_score, 
+            format!("Final Score: {} | Time: {:.1}s",
+                game_state.cartel_score,
                 game_state.mission_timer
             ),
             TextStyle {
@@ -1050,7 +1050,7 @@ fn create_victory_screen(commands: &mut Commands, game_state: &GameState, campai
             margin: UiRect::top(Val::Px(30.0)),
             ..default()
         }));
-        
+
         // Continue instructions
         parent.spawn(TextBundle::from_section(
             "Press SPACE to continue | ESC for main menu",
@@ -1097,7 +1097,7 @@ fn create_defeat_screen(commands: &mut Commands, game_state: &GameState, campaig
             ),
             MissionResultText,
         ));
-        
+
         // Mission name
         let mission_config = MissionConfig::get_mission_config(&campaign.progress.current_mission);
         parent.spawn(TextBundle::from_section(
@@ -1111,7 +1111,7 @@ fn create_defeat_screen(commands: &mut Commands, game_state: &GameState, campaig
             margin: UiRect::top(Val::Px(20.0)),
             ..default()
         }));
-        
+
         // Failure context
         parent.spawn(TextBundle::from_section(
             "The government forces succeeded in their objective.\nHowever, this simulation helps understand the complex\ndynamics that led to the actual historical outcome.",
@@ -1125,7 +1125,7 @@ fn create_defeat_screen(commands: &mut Commands, game_state: &GameState, campaig
             max_width: Val::Px(800.0),
             ..default()
         }));
-        
+
         // Objectives summary
         parent.spawn(TextBundle::from_section(
             "📊 MISSION OBJECTIVES:",
@@ -1138,7 +1138,7 @@ fn create_defeat_screen(commands: &mut Commands, game_state: &GameState, campaig
             margin: UiRect::top(Val::Px(20.0)),
             ..default()
         }));
-        
+
         parent.spawn(TextBundle::from_section(
             get_objective_summary(campaign),
             TextStyle {
@@ -1150,11 +1150,11 @@ fn create_defeat_screen(commands: &mut Commands, game_state: &GameState, campaig
             margin: UiRect::all(Val::Px(10.0)),
             ..default()
         }));
-        
+
         // Score summary
         parent.spawn(TextBundle::from_section(
-            format!("Final Score: {} | Survived: {:.1}s", 
-                game_state.cartel_score, 
+            format!("Final Score: {} | Survived: {:.1}s",
+                game_state.cartel_score,
                 game_state.mission_timer
             ),
             TextStyle {
@@ -1166,7 +1166,7 @@ fn create_defeat_screen(commands: &mut Commands, game_state: &GameState, campaig
             margin: UiRect::top(Val::Px(30.0)),
             ..default()
         }));
-        
+
         // Continue instructions
         parent.spawn(TextBundle::from_section(
             "Press SPACE to try again | ESC for main menu",
@@ -1187,7 +1187,7 @@ fn advance_campaign_or_end(game_state: &mut GameState, _campaign: &Campaign) {
     // In the future, this could advance to the next mission
     game_state.game_phase = GamePhase::MainMenu;
     play_tactical_sound("radio", "Mission complete. Ready for next operation...");
-    
+
     // Reset mission timer for potential replay
     game_state.mission_timer = 0.0;
 }
@@ -1205,23 +1205,23 @@ pub fn minimap_system(
         for (entity, _, _) in minimap_icon_query.iter() {
             commands.entity(entity).despawn();
         }
-        
+
         // Create new icons for all living units
         for (transform, unit) in unit_query.iter() {
             if unit.health <= 0.0 {
                 continue;
             }
-            
+
             // Scale world position to minimap coordinates (200x150 minimap)
             let minimap_x = (transform.translation.x / 1000.0) * 100.0 + 100.0; // Center at 100
             let minimap_y = (transform.translation.y / 750.0) * 75.0 + 75.0;   // Center at 75
-            
+
             let icon_color = match unit.faction {
                 Faction::Cartel => Color::RED,
                 Faction::Military => Color::GREEN,
                 _ => Color::WHITE,
             };
-            
+
             commands.entity(minimap_entity).with_children(|parent| {
                 parent.spawn((
                     NodeBundle {
@@ -1257,10 +1257,10 @@ fn assign_formation_positions(
     if selected_units.is_empty() {
         return;
     }
-    
+
     let unit_count = selected_units.len();
     let spacing = 60.0; // Distance between units in formation
-    
+
     for (i, &unit_entity) in selected_units.iter().enumerate() {
         if let Ok(mut movement) = movement_query.get_mut(unit_entity) {
             let formation_offset = match formation_type {
@@ -1302,7 +1302,7 @@ fn assign_formation_positions(
                     Vec3::new(x_offset, -(i as f32 * spacing * 0.3), 0.0)
                 },
             };
-            
+
             movement.target_position = Some(target_center + formation_offset);
         }
     }
@@ -1311,27 +1311,27 @@ fn assign_formation_positions(
 // ==================== ATTACK TARGETING SYSTEM ====================
 
 fn find_enemy_at_position(
-    position: Vec3, 
+    position: Vec3,
     unit_query: &Query<(Entity, &Transform, &Unit, Option<&Selected>)>
 ) -> Option<Entity> {
     let click_radius = 50.0; // Detection radius for clicking on units
-    
+
     let mut closest_enemy = None;
     let mut closest_distance = f32::INFINITY;
-    
+
     for (entity, transform, unit, _) in unit_query.iter() {
         // Only target living military units (enemies of the player-controlled cartel)
         if unit.faction != Faction::Military || unit.health <= 0.0 {
             continue;
         }
-        
+
         let distance = transform.translation.distance(position);
         if distance < click_radius && distance < closest_distance {
             closest_distance = distance;
             closest_enemy = Some(entity);
         }
     }
-    
+
     closest_enemy
 }
 
@@ -1355,19 +1355,19 @@ pub fn sprite_animation_system(
 ) {
     for (mut transform, mut animated_sprite) in animated_query.iter_mut() {
         animated_sprite.animation_timer.tick(time.delta());
-        
+
         // Pulsing scale animation
         let time_ratio = animated_sprite.animation_timer.elapsed_secs() / animated_sprite.animation_timer.duration().as_secs_f32();
         let pulse = (time_ratio * std::f32::consts::PI * 2.0).sin();
         let scale_modifier = 1.0 + pulse * animated_sprite.scale_amplitude;
-        
+
         transform.scale = animated_sprite.base_scale * scale_modifier;
-        
+
         // Gentle rotation
         transform.rotation = Quat::from_rotation_z(
             animated_sprite.rotation_speed * time.delta_seconds()
         ) * transform.rotation;
-        
+
         // Reset timer when finished
         if animated_sprite.animation_timer.finished() {
             animated_sprite.animation_timer.reset();
@@ -1381,7 +1381,7 @@ pub fn movement_animation_system(
 ) {
     for (mut transform, mut movement_anim, movement) in movement_anim_query.iter_mut() {
         movement_anim.bob_timer.tick(time.delta());
-        
+
         // Only animate when moving
         if movement.target_position.is_some() {
             let bob_time = movement_anim.bob_timer.elapsed_secs();
@@ -1391,7 +1391,7 @@ pub fn movement_animation_system(
             // Return to base position when not moving
             transform.translation.y = movement_anim.base_y;
         }
-        
+
         // Reset timer periodically
         if movement_anim.bob_timer.finished() {
             movement_anim.bob_timer.reset();

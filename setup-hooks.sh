@@ -12,8 +12,12 @@ if [ ! -d ".git" ]; then
     exit 1
 fi
 
-# Make sure hooks directory exists
+# Ensure hooks directory exists
 mkdir -p .git/hooks
+
+# Copy hook templates into .git/hooks
+cp -f hooks/pre-commit .git/hooks/pre-commit
+cp -f hooks/commit-msg .git/hooks/commit-msg
 
 # Make hooks executable
 chmod +x .git/hooks/pre-commit .git/hooks/commit-msg
@@ -26,3 +30,4 @@ echo "  • commit-msg: Validates commit message format"
 echo ""
 echo "💡 These hooks will help maintain code quality and consistent commit messages."
 echo "🚀 You're ready to develop with automated quality checks!"
+ 

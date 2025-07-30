@@ -37,10 +37,10 @@ impl Default for UserRole {
 pub struct CreateUserRequest {
     #[validate(length(min = 3, max = 50))]
     pub username: String,
-    
+
     #[validate(email)]
     pub email: String,
-    
+
     #[validate(length(min = 8, max = 128))]
     pub password: String,
 }
@@ -48,7 +48,7 @@ pub struct CreateUserRequest {
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct LoginRequest {
     pub identifier: String, // username or email
-    
+
     #[validate(length(min = 1))]
     pub password: String,
 }
@@ -116,7 +116,7 @@ pub struct OAuthProvider {
 pub struct UpdateUserRequest {
     #[validate(length(min = 3, max = 50))]
     pub username: Option<String>,
-    
+
     #[validate(email)]
     pub email: Option<String>,
 }
@@ -124,7 +124,7 @@ pub struct UpdateUserRequest {
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct ChangePasswordRequest {
     pub current_password: String,
-    
+
     #[validate(length(min = 8, max = 128))]
     pub new_password: String,
 }
@@ -138,7 +138,7 @@ pub struct ResetPasswordRequest {
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct ConfirmResetPasswordRequest {
     pub token: String,
-    
+
     #[validate(length(min = 8, max = 128))]
     pub new_password: String,
 }

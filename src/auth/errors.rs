@@ -73,12 +73,27 @@ impl IntoResponse for AuthError {
             AuthError::AccountNotVerified => (StatusCode::FORBIDDEN, self.to_string()),
             AuthError::AccountDeactivated => (StatusCode::FORBIDDEN, self.to_string()),
             AuthError::ValidationError(_) => (StatusCode::BAD_REQUEST, self.to_string()),
-            AuthError::DatabaseError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Database error occurred".to_string()),
-            AuthError::HashingError => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
-            AuthError::TokenGenerationError => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
-            AuthError::EmailSendError => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to send email".to_string()),
+            AuthError::DatabaseError(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database error occurred".to_string(),
+            ),
+            AuthError::HashingError => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error".to_string(),
+            ),
+            AuthError::TokenGenerationError => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error".to_string(),
+            ),
+            AuthError::EmailSendError => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to send email".to_string(),
+            ),
             AuthError::OAuthError(_) => (StatusCode::BAD_REQUEST, self.to_string()),
-            AuthError::InternalServerError => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
+            AuthError::InternalServerError => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error".to_string(),
+            ),
         };
 
         let body = Json(json!({
@@ -120,12 +135,16 @@ impl From<validator::ValidationErrors> for AuthError {
             .field_errors()
             .iter()
             .flat_map(|(field, errors)| {
-                errors.iter().map(|error| {
-                    format!("{}: {}", field, error.message.as_ref().unwrap_or(&"Invalid value".into()))
+                errors.iter().map(move |error| {
+                    format!(
+                        "{}: {}",
+                        field,
+                        error.message.as_ref().unwrap_or(&"Invalid value".into())
+                    )
                 })
             })
             .collect();
-        
+
         AuthError::ValidationError(error_messages.join(", "))
     }
 }

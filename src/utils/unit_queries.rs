@@ -1,24 +1,20 @@
+use crate::components::{Faction, Unit, UnitType};
 use bevy::prelude::*;
-use crate::components::{Unit, Faction, UnitType};
 
 // ==================== UNIT QUERY UTILITIES ====================
 
 /// Count living units by faction
-pub fn count_living_units_by_faction(
-    unit_query: &Query<&Unit>,
-    faction: Faction,
-) -> usize {
-    unit_query.iter()
+pub fn count_living_units_by_faction(unit_query: &Query<&Unit>, faction: Faction) -> usize {
+    unit_query
+        .iter()
         .filter(|unit| unit.faction == faction && unit.health > 0.0)
         .count()
 }
 
-/// Count dead units by faction  
-pub fn count_dead_units_by_faction(
-    unit_query: &Query<&Unit>,
-    faction: Faction,
-) -> usize {
-    unit_query.iter()
+/// Count dead units by faction
+pub fn count_dead_units_by_faction(unit_query: &Query<&Unit>, faction: Faction) -> usize {
+    unit_query
+        .iter()
         .filter(|unit| unit.faction == faction && unit.health <= 0.0)
         .count()
 }
@@ -30,12 +26,18 @@ pub fn find_units_in_radius(
     radius: f32,
     include_dead: bool,
 ) -> Vec<(Entity, Vec3, UnitType, f32)> {
-    unit_query.iter()
+    unit_query
+        .iter()
         .filter(|(_, unit, _)| include_dead || unit.health > 0.0)
         .filter_map(|(entity, unit, transform)| {
             let distance = center.distance(transform.translation);
             if distance <= radius {
-                Some((entity, transform.translation, unit.unit_type.clone(), unit.health))
+                Some((
+                    entity,
+                    transform.translation,
+                    unit.unit_type.clone(),
+                    unit.health,
+                ))
             } else {
                 None
             }
@@ -48,10 +50,16 @@ pub fn get_enemy_units(
     unit_query: &Query<(Entity, &Unit, &Transform)>,
     friendly_faction: Faction,
 ) -> Vec<(Entity, Vec3, UnitType, f32)> {
-    unit_query.iter()
+    unit_query
+        .iter()
         .filter(|(_, unit, _)| unit.faction != friendly_faction && unit.health > 0.0)
         .map(|(entity, unit, transform)| {
-            (entity, transform.translation, unit.unit_type.clone(), unit.health)
+            (
+                entity,
+                transform.translation,
+                unit.unit_type.clone(),
+                unit.health,
+            )
         })
         .collect()
 }
@@ -61,10 +69,16 @@ pub fn get_ally_units(
     unit_query: &Query<(Entity, &Unit, &Transform)>,
     friendly_faction: Faction,
 ) -> Vec<(Entity, Vec3, UnitType, f32)> {
-    unit_query.iter()
+    unit_query
+        .iter()
         .filter(|(_, unit, _)| unit.faction == friendly_faction && unit.health > 0.0)
         .map(|(entity, unit, transform)| {
-            (entity, transform.translation, unit.unit_type.clone(), unit.health)
+            (
+                entity,
+                transform.translation,
+                unit.unit_type.clone(),
+                unit.health,
+            )
         })
         .collect()
 }
@@ -102,7 +116,8 @@ pub fn count_nearby_allies(
         .into_iter()
         .filter(|(_, _, _, _)| {
             // Filter for allies by checking faction in the query
-            unit_query.iter()
+            unit_query
+                .iter()
                 .any(|(entity, unit, _)| unit.faction == friendly_faction)
         })
         .count()
@@ -119,7 +134,8 @@ pub fn count_nearby_enemies(
         .into_iter()
         .filter(|(_, _, _, _)| {
             // Filter for enemies by checking faction in the query
-            unit_query.iter()
+            unit_query
+                .iter()
                 .any(|(entity, unit, _)| unit.faction != friendly_faction)
         })
         .count()
@@ -131,12 +147,11 @@ pub fn is_unit_type_alive(
     unit_type: UnitType,
     faction: Option<Faction>,
 ) -> bool {
-    unit_query.iter()
-        .any(|unit| {
-            unit.unit_type == unit_type 
-            && unit.health > 0.0 
+    unit_query.iter().any(|unit| {
+        unit.unit_type == unit_type
+            && unit.health > 0.0
             && faction.as_ref().map_or(true, |f| unit.faction == *f)
-        })
+    })
 }
 
 /// Find units of specific type
@@ -145,15 +160,14 @@ pub fn find_units_of_type(
     unit_type: UnitType,
     faction: Option<Faction>,
 ) -> Vec<(Entity, Vec3, f32)> {
-    unit_query.iter()
+    unit_query
+        .iter()
         .filter(|(_, unit, _)| {
             unit.unit_type == unit_type
-            && unit.health > 0.0
-            && faction.as_ref().map_or(true, |f| unit.faction == *f)
+                && unit.health > 0.0
+                && faction.as_ref().map_or(true, |f| unit.faction == *f)
         })
-        .map(|(entity, unit, transform)| {
-            (entity, transform.translation, unit.health)
-        })
+        .map(|(entity, unit, transform)| (entity, transform.translation, unit.health))
         .collect()
 }
 
@@ -165,7 +179,7 @@ pub fn calculate_unit_ratio(
 ) -> f32 {
     let count_a = count_living_units_by_faction(unit_query, faction_a);
     let count_b = count_living_units_by_faction(unit_query, faction_b);
-    
+
     if count_a + count_b == 0 {
         0.5 // Equal when no units
     } else {
@@ -181,7 +195,7 @@ pub fn calculate_kill_ratio(
 ) -> f32 {
     let kills_by_a = count_dead_units_by_faction(unit_query, faction_b);
     let kills_by_b = count_dead_units_by_faction(unit_query, faction_a);
-    
+
     if kills_by_a + kills_by_b == 0 {
         0.5 // Equal when no kills
     } else {
@@ -195,24 +209,32 @@ pub fn get_units_by_distance(
     position: Vec3,
     faction_filter: Option<Faction>,
     max_count: Option<usize>,
-) -> Vec<(Entity, Vec3, UnitType, f32, f32)> { // entity, pos, type, health, distance
-    let mut units: Vec<_> = unit_query.iter()
+) -> Vec<(Entity, Vec3, UnitType, f32, f32)> {
+    // entity, pos, type, health, distance
+    let mut units: Vec<_> = unit_query
+        .iter()
         .filter(|(_, unit, _)| {
             unit.health > 0.0 && faction_filter.as_ref().map_or(true, |f| unit.faction == *f)
         })
         .map(|(entity, unit, transform)| {
             let distance = position.distance(transform.translation);
-            (entity, transform.translation, unit.unit_type.clone(), unit.health, distance)
+            (
+                entity,
+                transform.translation,
+                unit.unit_type.clone(),
+                unit.health,
+                distance,
+            )
         })
         .collect();
-    
+
     // Sort by distance
     units.sort_by(|a, b| a.4.partial_cmp(&b.4).unwrap());
-    
+
     // Limit count if specified
     if let Some(max) = max_count {
         units.truncate(max);
     }
-    
+
     units
 }

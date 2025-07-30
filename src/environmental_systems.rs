@@ -6,11 +6,11 @@ use std::f32::consts::PI;
 pub struct EnvironmentalState {
     pub time_of_day: f32, // 0.0 = midnight, 0.5 = noon, 1.0 = midnight
     pub weather_type: WeatherType,
-    pub weather_intensity: f32, // 0.0 to 1.0
-    pub wind_direction: f32, // radians
-    pub wind_strength: f32, // 0.0 to 1.0
+    pub weather_intensity: f32,   // 0.0 to 1.0
+    pub wind_direction: f32,      // radians
+    pub wind_strength: f32,       // 0.0 to 1.0
     pub visibility_modifier: f32, // multiplier for vision range
-    pub movement_modifier: f32, // multiplier for movement speed
+    pub movement_modifier: f32,   // multiplier for movement speed
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -69,26 +69,26 @@ impl Default for EnvironmentalState {
 impl EnvironmentalState {
     pub fn get_ambient_light_color(&self) -> Color {
         let time_factor = (self.time_of_day * 2.0 * PI).cos();
-        
+
         match self.weather_type {
             WeatherType::Clear => {
                 if self.time_of_day < 0.25 || self.time_of_day > 0.75 {
                     // Night/Evening - cooler tones
-                    Color::rgb(0.2 + time_factor * 0.1, 0.2 + time_factor * 0.15, 0.4 + time_factor * 0.2)
+                    Color::rgb(
+                        0.2 + time_factor * 0.1,
+                        0.2 + time_factor * 0.15,
+                        0.4 + time_factor * 0.2,
+                    )
                 } else {
                     // Day - warmer tones
                     Color::rgb(1.0, 0.95 + time_factor * 0.05, 0.8 + time_factor * 0.1)
                 }
-            },
-            WeatherType::Overcast => {
-                Color::rgb(0.6, 0.6, 0.7) * (0.7 + time_factor * 0.2)
-            },
+            }
+            WeatherType::Overcast => Color::rgb(0.6, 0.6, 0.7) * (0.7 + time_factor * 0.2),
             WeatherType::LightRain | WeatherType::HeavyRain => {
                 Color::rgb(0.4, 0.45, 0.6) * (0.6 + time_factor * 0.15)
-            },
-            WeatherType::Fog => {
-                Color::rgb(0.7, 0.7, 0.8) * (0.5 + time_factor * 0.2)
-            },
+            }
+            WeatherType::Fog => Color::rgb(0.7, 0.7, 0.8) * (0.5 + time_factor * 0.2),
         }
     }
 
@@ -113,47 +113,55 @@ impl EnvironmentalState {
     pub fn update_gameplay_modifiers(&mut self) {
         let old_visibility = self.visibility_modifier;
         let old_movement = self.movement_modifier;
-        
+
         // Weather affects visibility and movement
         match self.weather_type {
             WeatherType::Clear => {
                 self.visibility_modifier = 1.0;
                 self.movement_modifier = 1.0;
-            },
+            }
             WeatherType::Overcast => {
                 self.visibility_modifier = 0.9;
                 self.movement_modifier = 1.0;
-            },
+            }
             WeatherType::LightRain => {
                 self.visibility_modifier = 0.8;
                 self.movement_modifier = 0.95;
-            },
+            }
             WeatherType::HeavyRain => {
                 self.visibility_modifier = 0.6;
                 self.movement_modifier = 0.8;
-            },
+            }
             WeatherType::Fog => {
                 self.visibility_modifier = 0.4;
                 self.movement_modifier = 0.9;
-            },
+            }
         }
 
         // Adjust based on intensity
         let intensity_factor = self.weather_intensity;
         self.visibility_modifier = 1.0 - (1.0 - self.visibility_modifier) * intensity_factor;
         self.movement_modifier = 1.0 - (1.0 - self.movement_modifier) * intensity_factor;
-        
+
         // Console feedback for significant environmental effects
-        if (old_visibility - self.visibility_modifier).abs() > 0.1 || (old_movement - self.movement_modifier).abs() > 0.1 {
+        if (old_visibility - self.visibility_modifier).abs() > 0.1
+            || (old_movement - self.movement_modifier).abs() > 0.1
+        {
             match self.weather_type {
-                WeatherType::HeavyRain => println!("🌧️ Heavy rain reduces visibility by {}% and slows movement by {}%", 
+                WeatherType::HeavyRain => println!(
+                    "🌧️ Heavy rain reduces visibility by {}% and slows movement by {}%",
                     ((1.0 - self.visibility_modifier) * 100.0) as i32,
-                    ((1.0 - self.movement_modifier) * 100.0) as i32),
-                WeatherType::Fog => println!("🌫️ Dense fog severely limits visibility by {}% - units harder to detect", 
-                    ((1.0 - self.visibility_modifier) * 100.0) as i32),
-                WeatherType::LightRain => println!("🌦️ Light rain reduces visibility by {}% and movement by {}%", 
+                    ((1.0 - self.movement_modifier) * 100.0) as i32
+                ),
+                WeatherType::Fog => println!(
+                    "🌫️ Dense fog severely limits visibility by {}% - units harder to detect",
+                    ((1.0 - self.visibility_modifier) * 100.0) as i32
+                ),
+                WeatherType::LightRain => println!(
+                    "🌦️ Light rain reduces visibility by {}% and movement by {}%",
                     ((1.0 - self.visibility_modifier) * 100.0) as i32,
-                    ((1.0 - self.movement_modifier) * 100.0) as i32),
+                    ((1.0 - self.movement_modifier) * 100.0) as i32
+                ),
                 _ => {}
             }
         }
@@ -170,35 +178,50 @@ pub fn update_environmental_time(
     let old_time = env_state.time_of_day;
     env_state.time_of_day = (env_state.time_of_day + time.delta_seconds() * time_speed) % 1.0;
     env_state.update_gameplay_modifiers();
-    
+
     // Display time of day status every 30 seconds
     *time_display_timer += time.delta_seconds();
     if *time_display_timer > 30.0 {
         *time_display_timer = 0.0;
-        
+
         let time_hour = (env_state.time_of_day * 24.0) as i32;
-        let time_period = if time_hour < 6 || time_hour >= 20 { "Night" } 
-                         else if time_hour < 12 { "Morning" } 
-                         else if time_hour < 18 { "Afternoon" } 
-                         else { "Evening" };
-        
-        println!("🕒 Time: {:02}:00 ({}) | Weather: {:?} | Visibility: {:.0}% | Movement: {:.0}%", 
-                time_hour, time_period, env_state.weather_type, 
-                env_state.visibility_modifier * 100.0, env_state.movement_modifier * 100.0);
+        let time_period = if time_hour < 6 || time_hour >= 20 {
+            "Night"
+        } else if time_hour < 12 {
+            "Morning"
+        } else if time_hour < 18 {
+            "Afternoon"
+        } else {
+            "Evening"
+        };
+
+        println!(
+            "🕒 Time: {:02}:00 ({}) | Weather: {:?} | Visibility: {:.0}% | Movement: {:.0}%",
+            time_hour,
+            time_period,
+            env_state.weather_type,
+            env_state.visibility_modifier * 100.0,
+            env_state.movement_modifier * 100.0
+        );
     }
-    
+
     // Check for major time transitions (day/night cycle impacts)
     let night_threshold = 0.8; // 8 PM
     let dawn_threshold = 0.25; // 6 AM
-    
-    if (old_time < night_threshold && env_state.time_of_day >= night_threshold) ||
-       (old_time < dawn_threshold && env_state.time_of_day >= dawn_threshold) {
-        let light_level = if env_state.time_of_day >= night_threshold || env_state.time_of_day < dawn_threshold { 
-            "darkness" 
-        } else { 
-            "daylight" 
-        };
-        println!("🌅 Environmental transition: {} affects unit detection and ambient lighting", light_level);
+
+    if (old_time < night_threshold && env_state.time_of_day >= night_threshold)
+        || (old_time < dawn_threshold && env_state.time_of_day >= dawn_threshold)
+    {
+        let light_level =
+            if env_state.time_of_day >= night_threshold || env_state.time_of_day < dawn_threshold {
+                "darkness"
+            } else {
+                "daylight"
+            };
+        println!(
+            "🌅 Environmental transition: {} affects unit detection and ambient lighting",
+            light_level
+        );
     }
 }
 
@@ -210,10 +233,10 @@ pub fn update_ambient_lighting(
     if env_state.is_changed() {
         let new_color = env_state.get_ambient_light_color();
         let new_intensity = env_state.get_ambient_intensity();
-        
+
         ambient_light_res.base_color = new_color;
         ambient_light_res.intensity_modifier = new_intensity;
-        
+
         // Update Bevy's ambient light
         ambient_light.color = new_color;
         ambient_light.brightness = new_intensity;
@@ -227,7 +250,7 @@ pub fn spawn_weather_particles(
     mut particle_spawn_timer: Local<f32>,
 ) {
     *particle_spawn_timer += time.delta_seconds();
-    
+
     if *particle_spawn_timer < 0.1 {
         return;
     }
@@ -269,7 +292,7 @@ pub fn spawn_weather_particles(
                     },
                 ));
             }
-        },
+        }
         WeatherType::Fog => {
             let mut rng = thread_rng();
             if rng.gen::<f32>() < 0.3 {
@@ -299,8 +322,8 @@ pub fn spawn_weather_particles(
                     },
                 ));
             }
-        },
-        _ => {},
+        }
+        _ => {}
     }
 }
 
@@ -311,7 +334,7 @@ pub fn update_weather_particles(
 ) {
     for (entity, mut transform, mut particle, mut sprite) in particle_query.iter_mut() {
         particle.lifetime += time.delta_seconds();
-        
+
         if particle.lifetime >= particle.max_lifetime {
             commands.entity(entity).despawn();
             continue;
@@ -325,16 +348,16 @@ pub fn update_weather_particles(
         match particle.particle_type {
             WeatherParticleType::Rain => {
                 sprite.color.set_a(0.6 * alpha_factor);
-            },
+            }
             WeatherParticleType::Fog => {
                 sprite.color.set_a(0.2 * alpha_factor);
                 // Fog particles grow slightly over time
                 let scale = 1.0 + particle.lifetime * 0.1;
                 transform.scale = Vec3::splat(scale);
-            },
+            }
             WeatherParticleType::Dust => {
                 sprite.color.set_a(0.4 * alpha_factor);
-            },
+            }
         }
 
         // Remove particles that fall below ground
@@ -350,12 +373,12 @@ pub fn trigger_weather_change(
     mut weather_timer: Local<f32>,
 ) {
     *weather_timer += time.delta_seconds();
-    
+
     // Weather changes every 2-5 minutes during battle
     let mut rng = thread_rng();
     if *weather_timer > 120.0 + rng.gen::<f32>() * 180.0 {
         *weather_timer = 0.0;
-        
+
         // Random weather transition (historically accurate for October in Culiacán)
         env_state.weather_type = match rng.gen_range(0..=100u32) {
             0..=60 => WeatherType::Clear,
@@ -365,21 +388,29 @@ pub fn trigger_weather_change(
             91..=100 => WeatherType::Fog,
             _ => WeatherType::Clear,
         };
-        
+
         env_state.weather_intensity = 0.5 + rng.gen::<f32>() * 0.5;
         env_state.wind_direction = rng.gen::<f32>() * 2.0 * PI;
         env_state.wind_strength = 0.1 + rng.gen::<f32>() * 0.4;
-        
+
         let tactical_info = match env_state.weather_type {
-            WeatherType::Clear => "Optimal visibility and movement - all units at full effectiveness",
+            WeatherType::Clear => {
+                "Optimal visibility and movement - all units at full effectiveness"
+            }
             WeatherType::Overcast => "Slightly reduced visibility - minor tactical impact",
-            WeatherType::LightRain => "Reduced visibility and movement - consider defensive positions",
-            WeatherType::HeavyRain => "Severely impaired visibility and movement - ambush opportunities increased",
+            WeatherType::LightRain => {
+                "Reduced visibility and movement - consider defensive positions"
+            }
+            WeatherType::HeavyRain => {
+                "Severely impaired visibility and movement - ambush opportunities increased"
+            }
             WeatherType::Fog => "Extremely limited visibility - close-quarters combat favored",
         };
-        
-        println!("🌤️ Weather changed to: {:?} (Intensity: {:.1})", 
-                env_state.weather_type, env_state.weather_intensity);
+
+        println!(
+            "🌤️ Weather changed to: {:?} (Intensity: {:.1})",
+            env_state.weather_type, env_state.weather_intensity
+        );
         println!("📊 Tactical Impact: {}", tactical_info);
     }
 }

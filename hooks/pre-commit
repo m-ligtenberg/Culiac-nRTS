@@ -1,0 +1,8 @@
+#!/bin/bash
+# Git pre-commit hook: format, compile check, and lint
+echo "🔍 Running pre-commit checks: fmt, check, clippy"
+cargo fmt -- --check || { echo '❌ cargo fmt failed'; exit 1; }
+cargo check || { echo '❌ cargo check failed'; exit 1; }
+cargo clippy -- -D warnings || { echo '❌ cargo clippy failed'; exit 1; }
+echo "✅ Pre-commit checks passed"
+ 

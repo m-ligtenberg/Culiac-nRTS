@@ -1,7 +1,7 @@
+use crate::components::GamePhase;
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::AudioSource as KiraAudioSource;
 use serde::{Deserialize, Serialize};
-use crate::components::GamePhase;
 
 // ==================== SETUP RESOURCES ====================
 
@@ -21,7 +21,7 @@ pub struct GameAssets {
     pub vehicle_sprite: Handle<Image>,
     pub roadblock_sprite: Handle<Image>,
     pub safehouse_sprite: Handle<Image>,
-    
+
     // Future expansion assets
     pub _health_bar_bg: Handle<Image>,
     pub _health_bar_fill: Handle<Image>,
@@ -33,7 +33,7 @@ pub struct GameAssets {
 
 // ==================== GAME STATE RESOURCES ====================
 
-#[derive(Resource, Clone, Serialize, Deserialize)]
+#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
 pub struct GameState {
     pub mission_timer: f32,
     pub current_wave: u32,
@@ -74,9 +74,9 @@ pub struct IntelSystem {
     pub radio_frequency: f32,
     pub jamming_active: bool,
     pub jamming_strength: f32,
-    pub intercept_chance: f32,       // Base chance to intercept radio messages
-    pub informant_reliability: f32,  // Base reliability of informant tips
-    pub counter_intel_level: f32,    // Enemy counter-intelligence strength
+    pub intercept_chance: f32, // Base chance to intercept radio messages
+    pub informant_reliability: f32, // Base reliability of informant tips
+    pub counter_intel_level: f32, // Enemy counter-intelligence strength
 }
 
 impl Default for IntelSystem {
@@ -121,5 +121,12 @@ pub struct SaveData {
 // ==================== CONDITION FUNCTIONS ====================
 
 pub fn not_in_menu_phase(game_state: Res<GameState>) -> bool {
-    !matches!(game_state.game_phase, GamePhase::MainMenu | GamePhase::SaveMenu | GamePhase::LoadMenu | GamePhase::Victory | GamePhase::Defeat)
+    !matches!(
+        game_state.game_phase,
+        GamePhase::MainMenu
+            | GamePhase::SaveMenu
+            | GamePhase::LoadMenu
+            | GamePhase::Victory
+            | GamePhase::Defeat
+    )
 }

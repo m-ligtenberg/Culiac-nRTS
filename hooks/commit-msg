@@ -1,0 +1,12 @@
+#!/bin/bash
+# Git commit-msg hook: enforce commit message format 'type(scope): description'
+MSG_FILE="$1"
+MSG=$(head -n1 "$MSG_FILE")
+EXPECTED='^(feat|fix|docs|chore|style|refactor|perf|test)(\(.+\))?: .+'  # Conventional Commits prefix
+if ! echo "$MSG" | grep -Eq "$EXPECTED"; then
+  echo "❌ Invalid commit message format"
+  echo "👉 Use: type(scope): description, e.g. feat(ui): add settings menu"
+  exit 1
+fi
+echo "✅ Commit message format OK"
+ 

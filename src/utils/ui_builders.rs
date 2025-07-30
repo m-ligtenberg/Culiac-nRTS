@@ -24,7 +24,8 @@ pub fn create_menu_container(title: &str) -> (NodeBundle, TextBundle) {
             color: Color::WHITE,
             ..default()
         },
-    ).with_style(Style {
+    )
+    .with_style(Style {
         margin: UiRect::all(Val::Px(20.0)),
         ..default()
     });
@@ -70,7 +71,8 @@ pub fn create_text_section(text: &str, size: f32, color: Color) -> TextBundle {
             color,
             ..default()
         },
-    ).with_style(Style {
+    )
+    .with_style(Style {
         margin: UiRect::all(Val::Px(5.0)),
         ..default()
     })
@@ -95,9 +97,14 @@ pub fn create_info_panel(title: &str, content: &str) -> NodeBundle {
 }
 
 /// Create a progress bar
-pub fn create_progress_bar(current: f32, max: f32, width: f32, height: f32) -> (NodeBundle, NodeBundle) {
+pub fn create_progress_bar(
+    current: f32,
+    max: f32,
+    width: f32,
+    height: f32,
+) -> (NodeBundle, NodeBundle) {
     let progress_ratio = if max > 0.0 { current / max } else { 0.0 };
-    
+
     let background = NodeBundle {
         style: Style {
             width: Val::Px(width),
@@ -124,9 +131,18 @@ pub fn create_progress_bar(current: f32, max: f32, width: f32, height: f32) -> (
 }
 
 /// Create a health bar with color coding
-pub fn create_health_bar(current_health: f32, max_health: f32, width: f32, height: f32) -> (NodeBundle, NodeBundle) {
-    let health_ratio = if max_health > 0.0 { current_health / max_health } else { 0.0 };
-    
+pub fn create_health_bar(
+    current_health: f32,
+    max_health: f32,
+    width: f32,
+    height: f32,
+) -> (NodeBundle, NodeBundle) {
+    let health_ratio = if max_health > 0.0 {
+        current_health / max_health
+    } else {
+        0.0
+    };
+
     let health_color = if health_ratio > 0.6 {
         Color::rgb(0.2, 0.8, 0.2) // Green
     } else if health_ratio > 0.3 {

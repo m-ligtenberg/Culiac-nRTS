@@ -48,7 +48,10 @@ impl GameAuthIntegration {
         start_auth_server_background(self.auth_server_port).await?;
 
         println!("Authentication system initialized successfully");
-        println!("API endpoints available at: http://localhost:{}/api", self.auth_server_port);
+        println!(
+            "API endpoints available at: http://localhost:{}/api",
+            self.auth_server_port
+        );
         println!("");
         println!("Available endpoints:");
         println!("  POST /api/auth/register          - User registration");
@@ -72,8 +75,13 @@ impl GameAuthIntegration {
     fn setup_default_environment(&self) {
         // Set up default JWT secret if not provided
         if env::var("JWT_SECRET").is_err() {
-            env::set_var("JWT_SECRET", "culiacan-rts-development-secret-change-in-production");
-            println!("⚠️  Using default JWT secret. Set JWT_SECRET environment variable in production!");
+            env::set_var(
+                "JWT_SECRET",
+                "culiacan-rts-development-secret-change-in-production",
+            );
+            println!(
+                "⚠️  Using default JWT secret. Set JWT_SECRET environment variable in production!"
+            );
         }
 
         // Set up default database URL if not provided
@@ -131,12 +139,12 @@ pub async fn setup_game_authentication() -> Result<GameAuthIntegration, AuthErro
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize authentication system
     let _auth_integration = crate::auth::setup_game_authentication().await?;
-    
+
     // Start the Bevy game
     App::new()
         // ... rest of your Bevy setup
         .run();
-    
+
     Ok(())
 }
 */
@@ -157,11 +165,11 @@ mod tests {
     fn test_integration_from_env() {
         env::set_var("AUTH_SERVER_PORT", "9090");
         env::set_var("AUTH_ENABLED", "false");
-        
+
         let integration = GameAuthIntegration::new();
         assert_eq!(integration.auth_server_port, 9090);
         assert!(!integration.auth_enabled);
-        
+
         // Clean up
         env::remove_var("AUTH_SERVER_PORT");
         env::remove_var("AUTH_ENABLED");
@@ -173,7 +181,7 @@ mod tests {
             auth_server_port: 3000,
             auth_enabled: true,
         };
-        
+
         assert_eq!(integration.get_api_base_url(), "http://localhost:3000/api");
     }
 }

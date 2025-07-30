@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::components::*;
+use bevy::prelude::*;
 
 // ==================== CAMERA CONTROL SYSTEM ====================
 
@@ -15,20 +15,28 @@ pub fn camera_control_system(
         warn!("Camera system: No camera found or multiple cameras detected");
         return;
     };
-    
+
     let mut movement = Vec3::ZERO;
-    
+
     // WASD camera movement
-    if input.pressed(KeyCode::W) { movement.y += 1.0; }
-    if input.pressed(KeyCode::S) { movement.y -= 1.0; }
-    if input.pressed(KeyCode::A) { movement.x -= 1.0; }
-    if input.pressed(KeyCode::D) { movement.x += 1.0; }
-    
+    if input.pressed(KeyCode::W) {
+        movement.y += 1.0;
+    }
+    if input.pressed(KeyCode::S) {
+        movement.y -= 1.0;
+    }
+    if input.pressed(KeyCode::A) {
+        movement.x -= 1.0;
+    }
+    if input.pressed(KeyCode::D) {
+        movement.x += 1.0;
+    }
+
     // Apply movement
     if movement != Vec3::ZERO {
         transform.translation += movement.normalize() * camera.pan_speed * time.delta_seconds();
     }
-    
+
     // Mouse wheel zoom
     for scroll in scroll_events.read() {
         let zoom_delta = -scroll.y * camera.zoom_speed;

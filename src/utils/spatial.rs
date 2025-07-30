@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::components::*;
+use bevy::prelude::*;
 use std::collections::HashMap;
 
 // ==================== SPATIAL PARTITIONING SYSTEM ====================
@@ -21,14 +21,38 @@ impl GridCell {
     pub fn get_neighbors(&self) -> Vec<GridCell> {
         vec![
             *self,
-            GridCell { x: self.x - 1, y: self.y - 1 },
-            GridCell { x: self.x, y: self.y - 1 },
-            GridCell { x: self.x + 1, y: self.y - 1 },
-            GridCell { x: self.x - 1, y: self.y },
-            GridCell { x: self.x + 1, y: self.y },
-            GridCell { x: self.x - 1, y: self.y + 1 },
-            GridCell { x: self.x, y: self.y + 1 },
-            GridCell { x: self.x + 1, y: self.y + 1 },
+            GridCell {
+                x: self.x - 1,
+                y: self.y - 1,
+            },
+            GridCell {
+                x: self.x,
+                y: self.y - 1,
+            },
+            GridCell {
+                x: self.x + 1,
+                y: self.y - 1,
+            },
+            GridCell {
+                x: self.x - 1,
+                y: self.y,
+            },
+            GridCell {
+                x: self.x + 1,
+                y: self.y,
+            },
+            GridCell {
+                x: self.x - 1,
+                y: self.y + 1,
+            },
+            GridCell {
+                x: self.x,
+                y: self.y + 1,
+            },
+            GridCell {
+                x: self.x + 1,
+                y: self.y + 1,
+            },
         ]
     }
 }
@@ -67,7 +91,7 @@ impl SpatialGrid {
             if let Some(units_in_cell) = self.units.get(&cell) {
                 for &(entity, unit_pos, max_range) in units_in_cell {
                     let distance = position.distance(unit_pos);
-                    
+
                     // Include unit if it's within search range or if the unit's own range reaches us
                     if distance <= search_range + max_range {
                         nearby_units.push((entity, unit_pos, max_range));
@@ -81,8 +105,8 @@ impl SpatialGrid {
 }
 
 pub fn find_combat_pairs_optimized(
-    units: &[(Entity, &Unit, &Transform)], 
-    visibility_modifier: f32
+    units: &[(Entity, &Unit, &Transform)],
+    visibility_modifier: f32,
 ) -> Vec<(Entity, Entity, f32)> {
     if units.len() < 10 {
         // For small unit counts, use the original O(n²) algorithm (it's faster due to less overhead)
@@ -108,15 +132,19 @@ pub fn find_combat_pairs_optimized(
         }
 
         let effective_range_a = unit_a.range * visibility_modifier;
-        
+
         // Try to attack assigned target first (same as original)
         if let Some(target_entity) = unit_a.target {
-            if let Some((_, target_unit, target_transform)) = units.iter()
-                .find(|(entity, _, _)| *entity == target_entity) {
-                
-                if target_unit.health > 0.0 
-                    && target_unit.faction != unit_a.faction 
-                    && transform_a.translation.distance(target_transform.translation) <= effective_range_a {
+            if let Some((_, target_unit, target_transform)) =
+                units.iter().find(|(entity, _, _)| *entity == target_entity)
+            {
+                if target_unit.health > 0.0
+                    && target_unit.faction != unit_a.faction
+                    && transform_a
+                        .translation
+                        .distance(target_transform.translation)
+                        <= effective_range_a
+                {
                     combat_events.push((*entity_a, target_entity, unit_a.damage));
                     continue;
                 }
@@ -124,8 +152,9 @@ pub fn find_combat_pairs_optimized(
         }
 
         // Find nearby enemies using spatial grid
-        let nearby_units = spatial_grid.find_nearby_units(transform_a.translation, effective_range_a);
-        
+        let nearby_units =
+            spatial_grid.find_nearby_units(transform_a.translation, effective_range_a);
+
         for (entity_b, pos_b, _) in nearby_units {
             if entity_b == *entity_a {
                 continue; // Skip self
@@ -156,41 +185,45 @@ pub fn find_combat_pairs_optimized(
 
 // Fallback simple algorithm for small unit counts
 fn find_combat_pairs_simple(
-    units: &[(Entity, &Unit, &Transform)], 
-    visibility_modifier: f32
+    units: &[(Entity, &Unit, &Transform)],
+    visibility_modifier: f32,
 ) -> Vec<(Entity, Entity, f32)> {
     let mut combat_events = Vec::new();
-    
+
     for (i, (entity_a, unit_a, transform_a)) in units.iter().enumerate() {
         if unit_a.health <= 0.0 || !unit_a.attack_cooldown.finished() {
             continue;
         }
-        
+
         let effective_range_a = unit_a.range * visibility_modifier;
-        
+
         // Try to attack assigned target first
         if let Some(target_entity) = unit_a.target {
-            if let Some((_, target_unit, target_transform)) = units.iter()
-                .find(|(entity, _, _)| *entity == target_entity) {
-                
-                if target_unit.health > 0.0 
-                    && target_unit.faction != unit_a.faction 
-                    && transform_a.translation.distance(target_transform.translation) <= effective_range_a {
+            if let Some((_, target_unit, target_transform)) =
+                units.iter().find(|(entity, _, _)| *entity == target_entity)
+            {
+                if target_unit.health > 0.0
+                    && target_unit.faction != unit_a.faction
+                    && transform_a
+                        .translation
+                        .distance(target_transform.translation)
+                        <= effective_range_a
+                {
                     combat_events.push((*entity_a, target_entity, unit_a.damage));
                     continue;
                 }
             }
         }
-        
+
         // General combat - attack nearest enemy if no specific target
         for (entity_b, unit_b, transform_b) in units.iter().skip(i + 1) {
             if unit_a.faction == unit_b.faction || unit_b.health <= 0.0 {
                 continue;
             }
-            
+
             let distance = transform_a.translation.distance(transform_b.translation);
             let effective_range_b = unit_b.range * visibility_modifier;
-            
+
             if distance <= effective_range_a {
                 combat_events.push((*entity_a, *entity_b, unit_a.damage));
             }
@@ -199,6 +232,6 @@ fn find_combat_pairs_simple(
             }
         }
     }
-    
+
     combat_events
 }

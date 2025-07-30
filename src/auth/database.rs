@@ -1,5 +1,6 @@
 use crate::auth::{
-    AuthError, CreateUserRequest, EmailVerification, OAuthProvider, PasswordReset, Session, User, UserRole
+    AuthError, CreateUserRequest, EmailVerification, OAuthProvider, PasswordReset, Session, User,
+    UserRole,
 };
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::{DateTime, Duration, Utc};
@@ -80,12 +81,11 @@ impl AuthDatabase {
 
     pub async fn get_user_by_identifier(&self, identifier: &str) -> Result<User, AuthError> {
         // Try to find user by username or email
-        let user = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE username = ?1 OR email = ?1"
-        )
-        .bind(identifier)
-        .fetch_one(&self.pool)
-        .await?;
+        let user =
+            sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = ?1 OR email = ?1")
+                .bind(identifier)
+                .fetch_one(&self.pool)
+                .await?;
 
         Ok(user)
     }
@@ -130,17 +130,23 @@ impl AuthDatabase {
         }
 
         let now = Utc::now();
-        sqlx::query("UPDATE users SET email = ?1, updated_at = ?2, is_verified = false WHERE id = ?3")
-            .bind(email)
-            .bind(now)
-            .bind(user_id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "UPDATE users SET email = ?1, updated_at = ?2, is_verified = false WHERE id = ?3",
+        )
+        .bind(email)
+        .bind(now)
+        .bind(user_id)
+        .execute(&self.pool)
+        .await?;
 
         Ok(())
     }
 
-    pub async fn update_user_username(&self, user_id: Uuid, username: &str) -> Result<(), AuthError> {
+    pub async fn update_user_username(
+        &self,
+        user_id: Uuid,
+        username: &str,
+    ) -> Result<(), AuthError> {
         if self.username_exists(username).await? {
             return Err(AuthError::UsernameAlreadyExists);
         }
@@ -156,7 +162,11 @@ impl AuthDatabase {
         Ok(())
     }
 
-    pub async fn update_user_password(&self, user_id: Uuid, new_password: &str) -> Result<(), AuthError> {
+    pub async fn update_user_password(
+        &self,
+        user_id: Uuid,
+        new_password: &str,
+    ) -> Result<(), AuthError> {
         let password_hash = hash(new_password, DEFAULT_COST)?;
         let now = Utc::now();
 
@@ -204,7 +214,14 @@ impl AuthDatabase {
     }
 
     // Session Management
-    pub async fn create_session(&self, user_id: Uuid, refresh_token: &str, expires_at: DateTime<Utc>, user_agent: Option<String>, ip_address: Option<String>) -> Result<Session, AuthError> {
+    pub async fn create_session(
+        &self,
+        user_id: Uuid,
+        refresh_token: &str,
+        expires_at: DateTime<Utc>,
+        user_agent: Option<String>,
+        ip_address: Option<String>,
+    ) -> Result<Session, AuthError> {
         let session_id = Uuid::new_v4();
         let now = Utc::now();
 
@@ -230,10 +247,11 @@ impl AuthDatabase {
     }
 
     pub async fn get_session_by_token(&self, refresh_token: &str) -> Result<Session, AuthError> {
-        let session = sqlx::query_as::<_, Session>("SELECT * FROM sessions WHERE refresh_token = ?1")
-            .bind(refresh_token)
-            .fetch_one(&self.pool)
-            .await?;
+        let session =
+            sqlx::query_as::<_, Session>("SELECT * FROM sessions WHERE refresh_token = ?1")
+                .bind(refresh_token)
+                .fetch_one(&self.pool)
+                .await?;
 
         Ok(session)
     }
@@ -278,7 +296,11 @@ impl AuthDatabase {
     }
 
     // Password Reset
-    pub async fn create_password_reset(&self, user_id: Uuid, token: &str) -> Result<PasswordReset, AuthError> {
+    pub async fn create_password_reset(
+        &self,
+        user_id: Uuid,
+        token: &str,
+    ) -> Result<PasswordReset, AuthError> {
         let reset_id = Uuid::new_v4();
         let now = Utc::now();
         let expires_at = now + Duration::hours(24); // Reset token expires in 24 hours
@@ -302,9 +324,12 @@ impl AuthDatabase {
         Ok(reset)
     }
 
-    pub async fn get_password_reset_by_token(&self, token: &str) -> Result<PasswordReset, AuthError> {
+    pub async fn get_password_reset_by_token(
+        &self,
+        token: &str,
+    ) -> Result<PasswordReset, AuthError> {
         let reset = sqlx::query_as::<_, PasswordReset>(
-            "SELECT * FROM password_resets WHERE token = ?1 AND used = false AND expires_at > ?2"
+            "SELECT * FROM password_resets WHERE token = ?1 AND used = false AND expires_at > ?2",
         )
         .bind(token)
         .bind(Utc::now())
@@ -324,7 +349,11 @@ impl AuthDatabase {
     }
 
     // Email Verification
-    pub async fn create_email_verification(&self, user_id: Uuid, token: &str) -> Result<EmailVerification, AuthError> {
+    pub async fn create_email_verification(
+        &self,
+        user_id: Uuid,
+        token: &str,
+    ) -> Result<EmailVerification, AuthError> {
         let verification_id = Uuid::new_v4();
         let now = Utc::now();
         let expires_at = now + Duration::hours(48); // Verification token expires in 48 hours
@@ -348,7 +377,10 @@ impl AuthDatabase {
         Ok(verification)
     }
 
-    pub async fn get_email_verification_by_token(&self, token: &str) -> Result<EmailVerification, AuthError> {
+    pub async fn get_email_verification_by_token(
+        &self,
+        token: &str,
+    ) -> Result<EmailVerification, AuthError> {
         let verification = sqlx::query_as::<_, EmailVerification>(
             "SELECT * FROM email_verifications WHERE token = ?1 AND verified = false AND expires_at > ?2"
         )
@@ -360,7 +392,10 @@ impl AuthDatabase {
         Ok(verification)
     }
 
-    pub async fn mark_email_verification_used(&self, verification_id: Uuid) -> Result<(), AuthError> {
+    pub async fn mark_email_verification_used(
+        &self,
+        verification_id: Uuid,
+    ) -> Result<(), AuthError> {
         sqlx::query("UPDATE email_verifications SET verified = true WHERE id = ?1")
             .bind(verification_id)
             .execute(&self.pool)
@@ -370,7 +405,15 @@ impl AuthDatabase {
     }
 
     // OAuth Provider Management
-    pub async fn create_oauth_provider(&self, user_id: Uuid, provider: &str, provider_user_id: &str, access_token: Option<String>, refresh_token: Option<String>, expires_at: Option<DateTime<Utc>>) -> Result<OAuthProvider, AuthError> {
+    pub async fn create_oauth_provider(
+        &self,
+        user_id: Uuid,
+        provider: &str,
+        provider_user_id: &str,
+        access_token: Option<String>,
+        refresh_token: Option<String>,
+        expires_at: Option<DateTime<Utc>>,
+    ) -> Result<OAuthProvider, AuthError> {
         let provider_id = Uuid::new_v4();
         let now = Utc::now();
 
@@ -396,9 +439,13 @@ impl AuthDatabase {
         Ok(oauth_provider)
     }
 
-    pub async fn get_oauth_provider(&self, provider: &str, provider_user_id: &str) -> Result<OAuthProvider, AuthError> {
+    pub async fn get_oauth_provider(
+        &self,
+        provider: &str,
+        provider_user_id: &str,
+    ) -> Result<OAuthProvider, AuthError> {
         let oauth_provider = sqlx::query_as::<_, OAuthProvider>(
-            "SELECT * FROM oauth_providers WHERE provider = ?1 AND provider_user_id = ?2"
+            "SELECT * FROM oauth_providers WHERE provider = ?1 AND provider_user_id = ?2",
         )
         .bind(provider)
         .bind(provider_user_id)
@@ -408,13 +455,15 @@ impl AuthDatabase {
         Ok(oauth_provider)
     }
 
-    pub async fn get_user_oauth_providers(&self, user_id: Uuid) -> Result<Vec<OAuthProvider>, AuthError> {
-        let providers = sqlx::query_as::<_, OAuthProvider>(
-            "SELECT * FROM oauth_providers WHERE user_id = ?1"
-        )
-        .bind(user_id)
-        .fetch_all(&self.pool)
-        .await?;
+    pub async fn get_user_oauth_providers(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<OAuthProvider>, AuthError> {
+        let providers =
+            sqlx::query_as::<_, OAuthProvider>("SELECT * FROM oauth_providers WHERE user_id = ?1")
+                .bind(user_id)
+                .fetch_all(&self.pool)
+                .await?;
 
         Ok(providers)
     }

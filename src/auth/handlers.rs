@@ -1,9 +1,9 @@
 use crate::auth::{
+    discord_user_to_create_request, github_user_to_create_request, google_user_to_create_request,
     AuthDatabase, AuthError, AuthResponse, AuthService, ChangePasswordRequest, Claims,
     ConfirmResetPasswordRequest, CreateUserRequest, CurrentUser, JwtService, LoginRequest,
     OAuthCallback, OAuthService, OptionalCurrentUser, ResetPasswordRequest, UpdateUserRequest,
-    UserInfo, discord_user_to_create_request, github_user_to_create_request,
-    google_user_to_create_request,
+    UserInfo,
 };
 use axum::{
     extract::{Path, Query, State},
@@ -52,8 +52,12 @@ pub async fn register(
     let (access_token, refresh_token) = handlers.jwt_service.generate_token_pair(&user)?;
 
     // Create session
-    let expires_at = Utc::now() + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
-    handlers.auth_db.create_session(user.id, &refresh_token, expires_at, None, None).await?;
+    let expires_at = Utc::now()
+        + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
+    handlers
+        .auth_db
+        .create_session(user.id, &refresh_token, expires_at, None, None)
+        .await?;
 
     // Create email verification token
     let verification_token: String = rand::thread_rng()
@@ -61,8 +65,11 @@ pub async fn register(
         .take(32)
         .map(char::from)
         .collect();
-    
-    handlers.auth_db.create_email_verification(user.id, &verification_token).await?;
+
+    handlers
+        .auth_db
+        .create_email_verification(user.id, &verification_token)
+        .await?;
 
     // TODO: Send verification email
     // send_verification_email(&user.email, &verification_token).await?;
@@ -88,7 +95,10 @@ pub async fn login(
     request.validate()?;
 
     // Find user by username or email
-    let user = handlers.auth_db.get_user_by_identifier(&request.identifier).await?;
+    let user = handlers
+        .auth_db
+        .get_user_by_identifier(&request.identifier)
+        .await?;
 
     // Check if account is active
     if !user.is_active {
@@ -96,7 +106,11 @@ pub async fn login(
     }
 
     // Verify password
-    if !handlers.auth_db.verify_password(&user, &request.password).await? {
+    if !handlers
+        .auth_db
+        .verify_password(&user, &request.password)
+        .await?
+    {
         return Err(AuthError::InvalidCredentials);
     }
 
@@ -107,14 +121,22 @@ pub async fn login(
     let (access_token, refresh_token) = handlers.jwt_service.generate_token_pair(&user)?;
 
     // Create session
-    let expires_at = Utc::now() + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
-    let user_agent = headers.get("user-agent").and_then(|h| h.to_str().ok()).map(String::from);
-    let ip_address = headers.get("x-forwarded-for")
+    let expires_at = Utc::now()
+        + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|h| h.to_str().ok())
+        .map(String::from);
+    let ip_address = headers
+        .get("x-forwarded-for")
         .or_else(|| headers.get("x-real-ip"))
         .and_then(|h| h.to_str().ok())
         .map(String::from);
 
-    handlers.auth_db.create_session(user.id, &refresh_token, expires_at, user_agent, ip_address).await?;
+    handlers
+        .auth_db
+        .create_session(user.id, &refresh_token, expires_at, user_agent, ip_address)
+        .await?;
 
     let response = AuthResponse {
         access_token,
@@ -134,7 +156,8 @@ pub async fn logout(
     Json(body): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, AuthError> {
     // Extract refresh token from request body
-    let refresh_token = body.get("refresh_token")
+    let refresh_token = body
+        .get("refresh_token")
         .and_then(|v| v.as_str())
         .ok_or(AuthError::InvalidRefreshToken)?;
 
@@ -153,16 +176,17 @@ pub async fn refresh_token(
     State(handlers): State<Arc<AuthHandlers>>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, AuthError> {
-    let refresh_token = body.get("refresh_token")
+    let refresh_token = body
+        .get("refresh_token")
         .and_then(|v| v.as_str())
         .ok_or(AuthError::InvalidRefreshToken)?;
 
     // Validate refresh token
     let claims = handlers.jwt_service.validate_token(refresh_token)?;
-    
+
     // Get session
     let session = handlers.auth_db.get_session_by_token(refresh_token).await?;
-    
+
     // Check if session is expired
     if session.expires_at < Utc::now() {
         handlers.auth_db.delete_session(session.id).await?;
@@ -183,8 +207,18 @@ pub async fn refresh_token(
 
     // Update session with new refresh token
     handlers.auth_db.delete_session(session.id).await?;
-    let expires_at = Utc::now() + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
-    handlers.auth_db.create_session(user.id, &new_refresh_token, expires_at, session.user_agent, session.ip_address).await?;
+    let expires_at = Utc::now()
+        + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
+    handlers
+        .auth_db
+        .create_session(
+            user.id,
+            &new_refresh_token,
+            expires_at,
+            session.user_agent,
+            session.ip_address,
+        )
+        .await?;
 
     let response = AuthResponse {
         access_token: new_access_token,
@@ -217,22 +251,31 @@ pub async fn update_profile(
 
     // Update username if provided
     if let Some(username) = &request.username {
-        handlers.auth_db.update_user_username(current_user.id, username).await?;
+        handlers
+            .auth_db
+            .update_user_username(current_user.id, username)
+            .await?;
     }
 
     // Update email if provided
     if let Some(email) = &request.email {
-        handlers.auth_db.update_user_email(current_user.id, email).await?;
-        
+        handlers
+            .auth_db
+            .update_user_email(current_user.id, email)
+            .await?;
+
         // Create new email verification token
         let verification_token: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(32)
             .map(char::from)
             .collect();
-        
-        handlers.auth_db.create_email_verification(current_user.id, &verification_token).await?;
-        
+
+        handlers
+            .auth_db
+            .create_email_verification(current_user.id, &verification_token)
+            .await?;
+
         // TODO: Send verification email
         // send_verification_email(email, &verification_token).await?;
     }
@@ -255,15 +298,25 @@ pub async fn change_password(
     let user = handlers.auth_db.get_user_by_id(current_user.id).await?;
 
     // Verify current password
-    if !handlers.auth_db.verify_password(&user, &request.current_password).await? {
+    if !handlers
+        .auth_db
+        .verify_password(&user, &request.current_password)
+        .await?
+    {
         return Err(AuthError::InvalidCredentials);
     }
 
     // Update password
-    handlers.auth_db.update_user_password(current_user.id, &request.new_password).await?;
+    handlers
+        .auth_db
+        .update_user_password(current_user.id, &request.new_password)
+        .await?;
 
     // Invalidate all sessions except current one (force re-login on other devices)
-    handlers.auth_db.delete_user_sessions(current_user.id).await?;
+    handlers
+        .auth_db
+        .delete_user_sessions(current_user.id)
+        .await?;
 
     Ok(Json(json!({"message": "Password updated successfully"})))
 }
@@ -286,14 +339,19 @@ pub async fn request_password_reset(
             .collect();
 
         // Create password reset record
-        handlers.auth_db.create_password_reset(user.id, &reset_token).await?;
+        handlers
+            .auth_db
+            .create_password_reset(user.id, &reset_token)
+            .await?;
 
         // TODO: Send password reset email
         // send_password_reset_email(&user.email, &reset_token).await?;
     }
 
     // Always return success to prevent user enumeration
-    Ok(Json(json!({"message": "If the email exists, a password reset link has been sent"})))
+    Ok(Json(
+        json!({"message": "If the email exists, a password reset link has been sent"}),
+    ))
 }
 
 // Confirm password reset
@@ -305,10 +363,16 @@ pub async fn confirm_password_reset(
     request.validate()?;
 
     // Find password reset record
-    let reset = handlers.auth_db.get_password_reset_by_token(&request.token).await?;
+    let reset = handlers
+        .auth_db
+        .get_password_reset_by_token(&request.token)
+        .await?;
 
     // Update user password
-    handlers.auth_db.update_user_password(reset.user_id, &request.new_password).await?;
+    handlers
+        .auth_db
+        .update_user_password(reset.user_id, &request.new_password)
+        .await?;
 
     // Mark reset token as used
     handlers.auth_db.mark_password_reset_used(reset.id).await?;
@@ -325,13 +389,22 @@ pub async fn verify_email(
     Path(token): Path<String>,
 ) -> Result<impl IntoResponse, AuthError> {
     // Find email verification record
-    let verification = handlers.auth_db.get_email_verification_by_token(&token).await?;
+    let verification = handlers
+        .auth_db
+        .get_email_verification_by_token(&token)
+        .await?;
 
     // Verify user email
-    handlers.auth_db.verify_user_email(verification.user_id).await?;
+    handlers
+        .auth_db
+        .verify_user_email(verification.user_id)
+        .await?;
 
     // Mark verification as used
-    handlers.auth_db.mark_email_verification_used(verification.id).await?;
+    handlers
+        .auth_db
+        .mark_email_verification_used(verification.id)
+        .await?;
 
     Ok(Json(json!({"message": "Email verified successfully"})))
 }
@@ -349,13 +422,23 @@ pub async fn google_oauth_callback(
     Query(callback): Query<OAuthCallback>,
 ) -> Result<impl IntoResponse, AuthError> {
     // Exchange code for user info
-    let google_user = handlers.oauth_service.google_exchange_code(&callback.code).await?;
+    let google_user = handlers
+        .oauth_service
+        .google_exchange_code(&callback.code)
+        .await?;
 
     // Try to find existing OAuth provider
-    if let Ok(oauth_provider) = handlers.auth_db.get_oauth_provider("google", &google_user.id).await {
+    if let Ok(oauth_provider) = handlers
+        .auth_db
+        .get_oauth_provider("google", &google_user.id)
+        .await
+    {
         // User exists, log them in
-        let user = handlers.auth_db.get_user_by_id(oauth_provider.user_id).await?;
-        
+        let user = handlers
+            .auth_db
+            .get_user_by_id(oauth_provider.user_id)
+            .await?;
+
         if !user.is_active {
             return Err(AuthError::AccountDeactivated);
         }
@@ -367,8 +450,12 @@ pub async fn google_oauth_callback(
         let (access_token, refresh_token) = handlers.jwt_service.generate_token_pair(&user)?;
 
         // Create session
-        let expires_at = Utc::now() + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
-        handlers.auth_db.create_session(user.id, &refresh_token, expires_at, None, None).await?;
+        let expires_at = Utc::now()
+            + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
+        handlers
+            .auth_db
+            .create_session(user.id, &refresh_token, expires_at, None, None)
+            .await?;
 
         let response = AuthResponse {
             access_token,
@@ -392,21 +479,28 @@ pub async fn google_oauth_callback(
     }
 
     // Create OAuth provider record
-    handlers.auth_db.create_oauth_provider(
-        user.id,
-        "google",
-        &google_user.id,
-        None, // Don't store access token for privacy
-        None,
-        None,
-    ).await?;
+    handlers
+        .auth_db
+        .create_oauth_provider(
+            user.id,
+            "google",
+            &google_user.id,
+            None, // Don't store access token for privacy
+            None,
+            None,
+        )
+        .await?;
 
     // Generate tokens
     let (access_token, refresh_token) = handlers.jwt_service.generate_token_pair(&user)?;
 
     // Create session
-    let expires_at = Utc::now() + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
-    handlers.auth_db.create_session(user.id, &refresh_token, expires_at, None, None).await?;
+    let expires_at = Utc::now()
+        + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
+    handlers
+        .auth_db
+        .create_session(user.id, &refresh_token, expires_at, None, None)
+        .await?;
 
     let response = AuthResponse {
         access_token,
@@ -432,13 +526,23 @@ pub async fn github_oauth_callback(
     Query(callback): Query<OAuthCallback>,
 ) -> Result<impl IntoResponse, AuthError> {
     // Exchange code for user info
-    let github_user = handlers.oauth_service.github_exchange_code(&callback.code).await?;
+    let github_user = handlers
+        .oauth_service
+        .github_exchange_code(&callback.code)
+        .await?;
 
     // Try to find existing OAuth provider
-    if let Ok(oauth_provider) = handlers.auth_db.get_oauth_provider("github", &github_user.id.to_string()).await {
+    if let Ok(oauth_provider) = handlers
+        .auth_db
+        .get_oauth_provider("github", &github_user.id.to_string())
+        .await
+    {
         // User exists, log them in
-        let user = handlers.auth_db.get_user_by_id(oauth_provider.user_id).await?;
-        
+        let user = handlers
+            .auth_db
+            .get_user_by_id(oauth_provider.user_id)
+            .await?;
+
         if !user.is_active {
             return Err(AuthError::AccountDeactivated);
         }
@@ -450,8 +554,12 @@ pub async fn github_oauth_callback(
         let (access_token, refresh_token) = handlers.jwt_service.generate_token_pair(&user)?;
 
         // Create session
-        let expires_at = Utc::now() + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
-        handlers.auth_db.create_session(user.id, &refresh_token, expires_at, None, None).await?;
+        let expires_at = Utc::now()
+            + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
+        handlers
+            .auth_db
+            .create_session(user.id, &refresh_token, expires_at, None, None)
+            .await?;
 
         let response = AuthResponse {
             access_token,
@@ -469,21 +577,28 @@ pub async fn github_oauth_callback(
     let user = handlers.auth_db.create_user(create_request).await?;
 
     // Create OAuth provider record
-    handlers.auth_db.create_oauth_provider(
-        user.id,
-        "github",
-        &github_user.id.to_string(),
-        None,
-        None,
-        None,
-    ).await?;
+    handlers
+        .auth_db
+        .create_oauth_provider(
+            user.id,
+            "github",
+            &github_user.id.to_string(),
+            None,
+            None,
+            None,
+        )
+        .await?;
 
     // Generate tokens
     let (access_token, refresh_token) = handlers.jwt_service.generate_token_pair(&user)?;
 
     // Create session
-    let expires_at = Utc::now() + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
-    handlers.auth_db.create_session(user.id, &refresh_token, expires_at, None, None).await?;
+    let expires_at = Utc::now()
+        + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
+    handlers
+        .auth_db
+        .create_session(user.id, &refresh_token, expires_at, None, None)
+        .await?;
 
     let response = AuthResponse {
         access_token,
@@ -509,13 +624,23 @@ pub async fn discord_oauth_callback(
     Query(callback): Query<OAuthCallback>,
 ) -> Result<impl IntoResponse, AuthError> {
     // Exchange code for user info
-    let discord_user = handlers.oauth_service.discord_exchange_code(&callback.code).await?;
+    let discord_user = handlers
+        .oauth_service
+        .discord_exchange_code(&callback.code)
+        .await?;
 
     // Try to find existing OAuth provider
-    if let Ok(oauth_provider) = handlers.auth_db.get_oauth_provider("discord", &discord_user.id).await {
+    if let Ok(oauth_provider) = handlers
+        .auth_db
+        .get_oauth_provider("discord", &discord_user.id)
+        .await
+    {
         // User exists, log them in
-        let user = handlers.auth_db.get_user_by_id(oauth_provider.user_id).await?;
-        
+        let user = handlers
+            .auth_db
+            .get_user_by_id(oauth_provider.user_id)
+            .await?;
+
         if !user.is_active {
             return Err(AuthError::AccountDeactivated);
         }
@@ -527,8 +652,12 @@ pub async fn discord_oauth_callback(
         let (access_token, refresh_token) = handlers.jwt_service.generate_token_pair(&user)?;
 
         // Create session
-        let expires_at = Utc::now() + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
-        handlers.auth_db.create_session(user.id, &refresh_token, expires_at, None, None).await?;
+        let expires_at = Utc::now()
+            + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
+        handlers
+            .auth_db
+            .create_session(user.id, &refresh_token, expires_at, None, None)
+            .await?;
 
         let response = AuthResponse {
             access_token,
@@ -552,21 +681,21 @@ pub async fn discord_oauth_callback(
     }
 
     // Create OAuth provider record
-    handlers.auth_db.create_oauth_provider(
-        user.id,
-        "discord",
-        &discord_user.id,
-        None,
-        None,
-        None,
-    ).await?;
+    handlers
+        .auth_db
+        .create_oauth_provider(user.id, "discord", &discord_user.id, None, None, None)
+        .await?;
 
     // Generate tokens
     let (access_token, refresh_token) = handlers.jwt_service.generate_token_pair(&user)?;
 
     // Create session
-    let expires_at = Utc::now() + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
-    handlers.auth_db.create_session(user.id, &refresh_token, expires_at, None, None).await?;
+    let expires_at = Utc::now()
+        + chrono::Duration::seconds(handlers.jwt_service.get_refresh_token_expiry_seconds());
+    handlers
+        .auth_db
+        .create_session(user.id, &refresh_token, expires_at, None, None)
+        .await?;
 
     let response = AuthResponse {
         access_token,

@@ -4,6 +4,7 @@ use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, 
 use std::env;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct JwtService {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
@@ -16,9 +17,8 @@ impl JwtService {
     pub fn new() -> Result<Self, AuthError> {
         let secret = env::var("JWT_SECRET")
             .unwrap_or_else(|_| "your-super-secret-jwt-key-change-in-production".to_string());
-        
-        let issuer = env::var("JWT_ISSUER")
-            .unwrap_or_else(|_| "culiacan-rts".to_string());
+
+        let issuer = env::var("JWT_ISSUER").unwrap_or_else(|_| "culiacan-rts".to_string());
 
         Ok(Self {
             encoding_key: EncodingKey::from_secret(secret.as_ref()),

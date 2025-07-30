@@ -1,4 +1,4 @@
-use crate::auth::{AuthError, JwtService, User, UserRole, extract_bearer_token, has_permission};
+use crate::auth::{extract_bearer_token, has_permission, AuthError, JwtService, User, UserRole};
 use axum::{
     extract::{Request, State},
     http::header::AUTHORIZATION,
@@ -72,10 +72,17 @@ pub async fn optional_auth_middleware(
     next.run(request).await
 }
 
-pub fn require_role(required_role: UserRole) -> impl Fn(Request, Next) -> Result<Response, AuthError> + Clone {
+pub fn require_role(
+    required_role: UserRole,
+) -> impl Fn(
+    Request,
+    Next,
+) -> std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<Response, AuthError>> + Send>,
+> + Clone {
     move |request: Request, next: Next| {
         let required_role = required_role.clone();
-        async move {
+        Box::pin(async move {
             let current_user = request
                 .extensions()
                 .get::<CurrentUser>()
@@ -86,7 +93,7 @@ pub fn require_role(required_role: UserRole) -> impl Fn(Request, Next) -> Result
             }
 
             Ok(next.run(request).await)
-        }
+        })
     }
 }
 
@@ -103,7 +110,10 @@ pub async fn admin_only_middleware(request: Request, next: Next) -> Result<Respo
     Ok(next.run(request).await)
 }
 
-pub async fn moderator_or_admin_middleware(request: Request, next: Next) -> Result<Response, AuthError> {
+pub async fn moderator_or_admin_middleware(
+    request: Request,
+    next: Next,
+) -> Result<Response, AuthError> {
     let current_user = request
         .extensions()
         .get::<CurrentUser>()
@@ -215,7 +225,7 @@ pub async fn rate_limit_middleware(
 ) -> Result<Response, AuthError> {
     // Extract IP address or user ID for rate limiting
     let _key = "global"; // In reality, you'd use IP or user ID
-    
+
     // Check rate limit
     // rate_limiter.check_rate_limit(key).await?;
 

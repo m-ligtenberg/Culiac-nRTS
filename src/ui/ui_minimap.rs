@@ -1,12 +1,15 @@
-use bevy::prelude::*;
 use crate::components::*;
+use bevy::prelude::*;
 
 // ==================== MINIMAP SYSTEM ====================
 
 pub fn minimap_system(
     mut commands: Commands,
     unit_query: Query<(&Transform, &Unit), Without<MiniMapIcon>>,
-    minimap_icon_query: Query<(Entity, &mut Style, &MiniMapIcon), (With<MiniMapIcon>, Without<Transform>)>,
+    minimap_icon_query: Query<
+        (Entity, &mut Style, &MiniMapIcon),
+        (With<MiniMapIcon>, Without<Transform>),
+    >,
     minimap_query: Query<Entity, With<MiniMap>>,
 ) {
     if let Ok(minimap_entity) = minimap_query.get_single() {
@@ -14,23 +17,23 @@ pub fn minimap_system(
         for (entity, _, _) in minimap_icon_query.iter() {
             commands.entity(entity).despawn();
         }
-        
+
         // Create new icons for all living units
         for (transform, unit) in unit_query.iter() {
             if unit.health <= 0.0 {
                 continue;
             }
-            
+
             // Scale world position to minimap coordinates (200x150 minimap)
             let minimap_x = (transform.translation.x / 1000.0) * 100.0 + 100.0; // Center at 100
-            let minimap_y = (transform.translation.y / 750.0) * 75.0 + 75.0;   // Center at 75
-            
+            let minimap_y = (transform.translation.y / 750.0) * 75.0 + 75.0; // Center at 75
+
             let icon_color = match unit.faction {
                 Faction::Cartel => Color::RED,
                 Faction::Military => Color::GREEN,
                 _ => Color::WHITE,
             };
-            
+
             commands.entity(minimap_entity).with_children(|parent| {
                 parent.spawn((
                     NodeBundle {

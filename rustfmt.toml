@@ -1,0 +1,5 @@
+# Rustfmt configuration for Battle of Culiacán RTS
+# Only format changed files; a full codebase cleanup will be addressed separately.
+edition = "2021"
+# Preserve existing whitespace in legacy files; focus formatting on new diffs.
+ignore = []

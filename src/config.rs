@@ -29,10 +29,10 @@ pub struct GameplayConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AudioConfig {
-    pub master_volume: f32,      // 0.0 - 1.0
-    pub sfx_volume: f32,         // 0.0 - 1.0
-    pub music_volume: f32,       // 0.0 - 1.0
-    pub voice_volume: f32,       // 0.0 - 1.0
+    pub master_volume: f32, // 0.0 - 1.0
+    pub sfx_volume: f32,    // 0.0 - 1.0
+    pub music_volume: f32,  // 0.0 - 1.0
+    pub voice_volume: f32,  // 0.0 - 1.0
     pub spatial_audio: bool,
     pub console_audio_fallback: bool, // Use console output when audio fails
     pub radio_chatter_frequency: f32, // Frequency of radio messages
@@ -44,9 +44,9 @@ pub struct VideoConfig {
     pub resolution_height: u32,
     pub fullscreen: bool,
     pub vsync: bool,
-    pub ui_scale: f32,           // UI scaling factor
-    pub particle_density: f32,   // Particle effect density (0.1 - 2.0)
-    pub camera_smoothing: f32,   // Camera movement smoothing
+    pub ui_scale: f32,         // UI scaling factor
+    pub particle_density: f32, // Particle effect density (0.1 - 2.0)
+    pub camera_smoothing: f32, // Camera movement smoothing
     pub show_fps: bool,
     pub weather_effects: bool,
 }
@@ -64,10 +64,10 @@ pub struct ControlsConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AdvancedConfig {
-    pub ai_update_frequency: f32,     // How often AI updates (Hz)
+    pub ai_update_frequency: f32, // How often AI updates (Hz)
     pub pathfinding_quality: PathfindingQuality,
-    pub physics_timestep: f32,        // Physics simulation step
-    pub max_units_per_faction: u32,   // Performance limit
+    pub physics_timestep: f32,      // Physics simulation step
+    pub max_units_per_faction: u32, // Performance limit
     pub debug_mode: bool,
     pub show_performance_stats: bool,
     pub log_level: LogLevel,
@@ -75,17 +75,17 @@ pub struct AdvancedConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DifficultyLevel {
-    Recruit,   // Easy - more forgiving timers, weaker enemies
-    Veteran,   // Normal - balanced gameplay
-    Elite,     // Hard - tougher enemies, strict objectives
+    Recruit,    // Easy - more forgiving timers, weaker enemies
+    Veteran,    // Normal - balanced gameplay
+    Elite,      // Hard - tougher enemies, strict objectives
     Historical, // Maximum realism - based on actual event constraints
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PathfindingQuality {
-    Fast,      // Basic pathfinding for performance
-    Balanced,  // Good balance of quality and performance
-    Accurate,  // Best pathfinding, may impact performance
+    Fast,     // Basic pathfinding for performance
+    Balanced, // Good balance of quality and performance
+    Accurate, // Best pathfinding, may impact performance
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -189,72 +189,75 @@ const CONFIG_DIR: &str = ".culiacan-rts";
 impl GameConfig {
     pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
         let config_path = get_config_path();
-        
+
         if !config_path.exists() {
             // Create default config if none exists
             let default_config = Self::default();
             default_config.save()?;
-            println!("📁 Created default configuration file at: {:?}", config_path);
+            println!(
+                "📁 Created default configuration file at: {:?}",
+                config_path
+            );
             return Ok(default_config);
         }
-        
+
         let config_content = fs::read_to_string(&config_path)?;
         let config: GameConfig = serde_json::from_str(&config_content)?;
-        
+
         println!("⚙️ Loaded configuration from: {:?}", config_path);
         Ok(config)
     }
-    
+
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let config_path = get_config_path();
-        
+
         // Create config directory if it doesn't exist
         if let Some(parent_dir) = config_path.parent() {
             fs::create_dir_all(parent_dir)?;
         }
-        
+
         let config_json = serde_json::to_string_pretty(self)?;
         fs::write(&config_path, config_json)?;
-        
+
         println!("💾 Configuration saved to: {:?}", config_path);
         Ok(())
     }
-    
+
     pub fn reset_to_defaults(&mut self) {
         *self = Self::default();
         println!("🔄 Configuration reset to defaults");
     }
-    
+
     pub fn validate(&mut self) -> Vec<String> {
         let mut warnings = Vec::new();
-        
+
         // Validate audio levels
         if self.audio.master_volume > 1.0 {
             self.audio.master_volume = 1.0;
             warnings.push("Master volume clamped to 100%".to_string());
         }
-        
+
         // Validate video settings
         if self.video.resolution_width < 800 || self.video.resolution_height < 600 {
             self.video.resolution_width = 1400;
             self.video.resolution_height = 900;
             warnings.push("Resolution reset to 1400x900 (minimum 800x600)".to_string());
         }
-        
+
         if self.video.particle_density > 3.0 {
             self.video.particle_density = 3.0;
             warnings.push("Particle density clamped to 300%".to_string());
         }
-        
+
         // Validate advanced settings
         if self.advanced.max_units_per_faction > 200 {
             self.advanced.max_units_per_faction = 200;
             warnings.push("Max units per faction clamped to 200 for performance".to_string());
         }
-        
+
         warnings
     }
-    
+
     pub fn apply_difficulty_modifiers(&self) -> DifficultyModifiers {
         match self.gameplay.difficulty_level {
             DifficultyLevel::Recruit => DifficultyModifiers {
@@ -314,19 +317,19 @@ pub fn setup_config_system(mut commands: Commands) {
         Ok(config) => {
             let mut config = config;
             let validation_warnings = config.validate();
-            
+
             for warning in validation_warnings {
                 warn!("Config validation: {}", warning);
             }
-            
+
             // Save validated config
             if let Err(e) = config.save() {
                 error!("Failed to save validated config: {}", e);
             }
-            
+
             commands.insert_resource(config);
             info!("✅ Game configuration loaded successfully");
-        },
+        }
         Err(e) => {
             error!("Failed to load config: {}, using defaults", e);
             commands.insert_resource(GameConfig::default());
@@ -334,24 +337,27 @@ pub fn setup_config_system(mut commands: Commands) {
     }
 }
 
-pub fn config_hotkeys_system(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut config: ResMut<GameConfig>,
-) {
+pub fn config_hotkeys_system(keyboard: Res<Input<KeyCode>>, mut config: ResMut<GameConfig>) {
     // F11 - Toggle fullscreen
     if keyboard.just_pressed(KeyCode::F11) {
         config.video.fullscreen = !config.video.fullscreen;
-        println!("🖥️ Fullscreen: {}", if config.video.fullscreen { "ON" } else { "OFF" });
+        println!(
+            "🖥️ Fullscreen: {}",
+            if config.video.fullscreen { "ON" } else { "OFF" }
+        );
     }
-    
+
     // F3 - Toggle FPS display
     if keyboard.just_pressed(KeyCode::F3) {
         config.video.show_fps = !config.video.show_fps;
-        println!("📊 FPS Display: {}", if config.video.show_fps { "ON" } else { "OFF" });
+        println!(
+            "📊 FPS Display: {}",
+            if config.video.show_fps { "ON" } else { "OFF" }
+        );
     }
-    
+
     // Ctrl+S - Save config
-    if keyboard.pressed(KeyCode::ControlLeft) && keyboard.just_pressed(KeyCode::KeyS) {
+    if keyboard.pressed(KeyCode::ControlLeft) && keyboard.just_pressed(KeyCode::S) {
         if let Err(e) = config.save() {
             error!("Failed to save config with hotkey: {}", e);
         }
@@ -367,19 +373,22 @@ pub fn performance_monitor_system(
     if !config.advanced.show_performance_stats {
         return;
     }
-    
+
     *display_timer += time.delta_seconds();
-    
-    if *display_timer > 5.0 { // Every 5 seconds
+
+    if *display_timer > 5.0 {
+        // Every 5 seconds
         *display_timer = 0.0;
-        
-        if let Some(fps) = diagnostics.get(&bevy::diagnostic::FrameTimeDiagnosticsPlugin::FPS) {
+
+        if let Some(fps) = diagnostics.get(bevy::diagnostic::FrameTimeDiagnosticsPlugin::FPS) {
             if let Some(fps_value) = fps.smoothed() {
                 println!("📊 Performance: {:.1} FPS", fps_value);
             }
         }
-        
-        if let Some(frame_time) = diagnostics.get(&bevy::diagnostic::FrameTimeDiagnosticsPlugin::FRAME_TIME) {
+
+        if let Some(frame_time) =
+            diagnostics.get(bevy::diagnostic::FrameTimeDiagnosticsPlugin::FRAME_TIME)
+        {
             if let Some(frame_time_ms) = frame_time.smoothed() {
                 println!("📊 Frame Time: {:.2}ms", frame_time_ms * 1000.0);
             }

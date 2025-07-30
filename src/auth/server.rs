@@ -1,9 +1,8 @@
 use crate::auth::{
-    initialize_database, cleanup_expired_data, create_admin_user,
-    AuthDatabase, AuthHandlers, AuthService, JwtService, OAuthConfig, OAuthService,
-    auth_middleware, optional_auth_middleware, admin_only_middleware, 
-    moderator_or_admin_middleware, rate_limit_middleware, RateLimiter,
-    AuthError, CurrentUser, OptionalCurrentUser,
+    admin_only_middleware, auth_middleware, cleanup_expired_data, create_admin_user,
+    initialize_database, moderator_or_admin_middleware, optional_auth_middleware,
+    rate_limit_middleware, AuthDatabase, AuthError, AuthHandlers, AuthService, CurrentUser,
+    JwtService, OAuthConfig, OAuthService, OptionalCurrentUser, RateLimiter,
 };
 use axum::{
     extract::State,
@@ -47,7 +46,11 @@ impl AuthServer {
         let oauth_config = OAuthConfig::new()?;
         let oauth_service = OAuthService::new(oauth_config);
 
-        let handlers = Arc::new(AuthHandlers::new(auth_db, jwt_service.clone(), oauth_service));
+        let handlers = Arc::new(AuthHandlers::new(
+            auth_db,
+            jwt_service.clone(),
+            oauth_service,
+        ));
 
         // Create auth service for middleware
         let auth_service = AuthService::new(jwt_service);
@@ -58,48 +61,84 @@ impl AuthServer {
             // Public routes (no authentication required)
             .route("/api/auth/register", post(crate::auth::handlers::register))
             .route("/api/auth/login", post(crate::auth::handlers::login))
-            .route("/api/auth/refresh", post(crate::auth::handlers::refresh_token))
-            .route("/api/auth/reset-password", post(crate::auth::handlers::request_password_reset))
-            .route("/api/auth/reset-password/confirm", post(crate::auth::handlers::confirm_password_reset))
-            .route("/api/auth/verify-email/:token", get(crate::auth::handlers::verify_email))
-            
+            .route(
+                "/api/auth/refresh",
+                post(crate::auth::handlers::refresh_token),
+            )
+            .route(
+                "/api/auth/reset-password",
+                post(crate::auth::handlers::request_password_reset),
+            )
+            .route(
+                "/api/auth/reset-password/confirm",
+                post(crate::auth::handlers::confirm_password_reset),
+            )
+            .route(
+                "/api/auth/verify-email/:token",
+                get(crate::auth::handlers::verify_email),
+            )
             // OAuth routes
-            .route("/api/auth/oauth/google", get(crate::auth::handlers::google_oauth_url))
-            .route("/api/auth/oauth/google/callback", get(crate::auth::handlers::google_oauth_callback))
-            .route("/api/auth/oauth/github", get(crate::auth::handlers::github_oauth_url))
-            .route("/api/auth/oauth/github/callback", get(crate::auth::handlers::github_oauth_callback))
-            .route("/api/auth/oauth/discord", get(crate::auth::handlers::discord_oauth_url))
-            .route("/api/auth/oauth/discord/callback", get(crate::auth::handlers::discord_oauth_callback))
-            
+            .route(
+                "/api/auth/oauth/google",
+                get(crate::auth::handlers::google_oauth_url),
+            )
+            .route(
+                "/api/auth/oauth/google/callback",
+                get(crate::auth::handlers::google_oauth_callback),
+            )
+            .route(
+                "/api/auth/oauth/github",
+                get(crate::auth::handlers::github_oauth_url),
+            )
+            .route(
+                "/api/auth/oauth/github/callback",
+                get(crate::auth::handlers::github_oauth_callback),
+            )
+            .route(
+                "/api/auth/oauth/discord",
+                get(crate::auth::handlers::discord_oauth_url),
+            )
+            .route(
+                "/api/auth/oauth/discord/callback",
+                get(crate::auth::handlers::discord_oauth_callback),
+            )
             // Protected routes (authentication required)
             .route("/api/auth/logout", post(crate::auth::handlers::logout))
             .route("/api/auth/profile", get(crate::auth::handlers::get_profile))
-            .route("/api/auth/profile", put(crate::auth::handlers::update_profile))
-            .route("/api/auth/change-password", post(crate::auth::handlers::change_password))
-            .layer(middleware::from_fn_with_state(auth_service.clone(), auth_middleware))
-
+            .route(
+                "/api/auth/profile",
+                put(crate::auth::handlers::update_profile),
+            )
+            .route(
+                "/api/auth/change-password",
+                post(crate::auth::handlers::change_password),
+            )
+            .layer(middleware::from_fn_with_state(
+                auth_service.clone(),
+                auth_middleware,
+            ))
             // Admin only routes
             .route("/api/admin/users", get(get_all_users))
             .route("/api/admin/users/:id/deactivate", post(deactivate_user))
             .route("/api/admin/users/:id/activate", post(activate_user))
             .layer(middleware::from_fn(admin_only_middleware))
-            .layer(middleware::from_fn_with_state(auth_service.clone(), auth_middleware))
-
+            .layer(middleware::from_fn_with_state(
+                auth_service.clone(),
+                auth_middleware,
+            ))
             // Public info routes (optional authentication)
             .route("/api/info/health", get(health_check))
             .route("/api/info/stats", get(get_stats))
-            .layer(middleware::from_fn_with_state(auth_service.clone(), optional_auth_middleware))
-
+            .layer(middleware::from_fn_with_state(
+                auth_service.clone(),
+                optional_auth_middleware,
+            ))
             // Add global middleware
             .layer(
-                ServiceBuilder::new()
-                    .layer(middleware::from_fn_with_state(rate_limiter, rate_limit_middleware))
-                    .layer(
-                        CorsLayer::new()
-                            .allow_origin(Any)
-                            .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-                            .allow_headers([AUTHORIZATION, CONTENT_TYPE])
-                    )
+                CorsLayer::new()
+                    .allow_origin(Any)
+                    .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+                    .allow_headers([AUTHORIZATION, CONTENT_TYPE]),
             )
             .with_state(handlers.clone());
 
@@ -214,14 +253,17 @@ async fn get_stats(
 // Helper function to start auth server in background
 pub async fn start_auth_server_background(port: u16) -> Result<(), AuthError> {
     let server = AuthServer::new().await?;
-    
+
     tokio::spawn(async move {
         if let Err(e) = server.start_server(port).await {
             eprintln!("Auth server error: {}", e);
         }
     });
 
-    println!("Authentication server started in background on port {}", port);
+    println!(
+        "Authentication server started in background on port {}",
+        port
+    );
     Ok(())
 }
 
@@ -230,12 +272,12 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
-    use tower::ServiceExt;
+    use tower::util::ServiceExt;
 
     #[tokio::test]
     async fn test_health_check() {
         let server = AuthServer::new().await.unwrap();
-        
+
         let response = server
             .router
             .oneshot(
@@ -253,7 +295,7 @@ mod tests {
     #[tokio::test]
     async fn test_protected_route_without_auth() {
         let server = AuthServer::new().await.unwrap();
-        
+
         let response = server
             .router
             .oneshot(
