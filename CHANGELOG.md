@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-01-30
+
 ### Added - Phase 4C: Environmental Systems
 - **Dynamic Weather System**: 5 weather types (Clear, Overcast, LightRain, HeavyRain, Fog) with random transitions every 2-5 minutes
 - **Time-of-Day Progression**: Historical accuracy starting at late afternoon (Oct 17, 2019) with dynamic lighting

@@ -49,7 +49,7 @@ Experience the asymmetric warfare tactics that led to the cartel's successful re
 ### Quick Start
 ```bash
 # Clone and enter directory
-cd toob-game
+cd Culiac-nRTS
 
 # Run the game
 cargo run
