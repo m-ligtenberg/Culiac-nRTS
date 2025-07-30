@@ -25,6 +25,7 @@ mod unit_systems;
 mod audio_system;
 mod environmental_systems;
 mod config;
+mod auth;
 
 use resources::{*, not_in_menu_phase};
 use systems::*;

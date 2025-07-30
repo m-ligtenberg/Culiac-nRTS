@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - master
   # Allows manual triggering from the Actions tab
   workflow_dispatch:
 
@@ -75,7 +76,7 @@ jobs:
 
       - name: Build site with Hugo
         run: |
-          hugo \
+          hugo --source docs/public \
             --gc \
             --minify \
             --baseURL "${{ steps.pages.outputs.base_url }}/" \
@@ -91,7 +92,7 @@ jobs:
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: public
+          path: docs/public/public
 
   deploy:
     name: Deploy to GitHub Pages

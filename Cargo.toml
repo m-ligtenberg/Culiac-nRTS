@@ -14,6 +14,30 @@ bevy_kira_audio = "0.18"
 chrono = "0.4.41"
 dirs = "5.0"
 
+# Authentication & Web Server
+tokio = { version = "1.0", features = ["full"] }
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+
+# Authentication
+jsonwebtoken = "9.2"
+bcrypt = "0.15"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# OAuth
+oauth2 = "4.4"
+reqwest = { version = "0.11", features = ["json"] }
+
+# Email
+lettre = { version = "0.11", features = ["tokio1-rustls-tls"] }
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
 [profile.release]
 lto = true
 codegen-units = 1
