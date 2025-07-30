@@ -29,6 +29,11 @@ defaults:
     shell: bash
 
 jobs:
+      name: Extract zip
+      uses: ihiroky/extract-action@v1
+      with:
+        file_path: /public/public.zip
+          extract_dir: /public
   # Build job
   build:
     runs-on: ubuntu-latest
