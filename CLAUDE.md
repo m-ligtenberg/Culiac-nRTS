@@ -217,6 +217,23 @@ cargo build --release
 # Cross-platform builds ready for distribution
 ```
 
+### **Development Tools & Quality Assurance**
+
+```bash
+# Install git hooks for automated quality checks
+./setup-hooks.sh
+
+# Manual code quality checks
+cargo fmt --all          # Format code
+cargo check --all        # Check compilation  
+cargo clippy --all       # Run linting
+```
+
+**Git Hooks Installed:**
+- **pre-commit**: Automatically runs `cargo fmt`, `cargo check`, and `cargo clippy`
+- **commit-msg**: Validates commit message format (verb: description format)
+- **Quality Gates**: Prevents commits with compilation errors or formatting issues
+
 ### **Code Organization**
 - **Core Systems**: Combat, Campaign management, Environmental systems, AI coordination
 - **UI Modules**: Core UI, Menus, Animations, Camera, Minimap, Selection
@@ -299,3 +316,5 @@ This game serves as an educational tool to understand:
 - **Configuration System**: JSON persistence with validation prevents configuration corruption
 - **Asset Pipeline**: Organized structure makes adding new content straightforward
 - **Spatial Audio**: 3D positioned audio creates immersive battlefield atmosphere
+- **Git Hooks**: Automated pre-commit quality checks prevent compilation errors and maintain code consistency
+- **Development Workflow**: Quality gates with cargo fmt, check, and clippy ensure professional code standards
