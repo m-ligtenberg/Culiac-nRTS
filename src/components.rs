@@ -120,6 +120,111 @@ pub enum FormationType {
     Retreat,        // Tactical withdrawal formation
 }
 
+// ==================== INTEL SYSTEM COMPONENTS ====================
+
+#[derive(Component)]
+pub struct IntelOperator {
+    pub intel_type: IntelType,
+    pub detection_range: f32,
+    pub stealth_level: f32,        // 0.0 = easily spotted, 1.0 = invisible
+    pub intel_cooldown: Timer,
+    pub last_intel_time: f32,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum IntelType {
+    Reconnaissance,    // Scout units with enhanced vision
+    RadioIntercept,   // Monitor enemy communications
+    Informant,        // Civilian contacts providing tips
+    CounterIntel,     // Detect enemy intel activities
+}
+
+#[derive(Component)]
+pub struct IntelNetwork {
+    pub active_intercepts: Vec<RadioIntercept>,
+    pub informant_reports: Vec<InformantTip>,
+    pub reconnaissance_data: Vec<ReconReport>,
+    pub counter_intel_alerts: Vec<CounterIntelAlert>,
+}
+
+#[derive(Clone, Debug)]
+pub struct RadioIntercept {
+    pub message_type: RadioMessageType,
+    pub source_position: Vec3,
+    pub intercept_time: f32,
+    pub reliability: f32,     // 0.0 to 1.0
+    pub content: String,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum RadioMessageType {
+    TroopMovement(Vec3, u32),      // Position, unit count
+    AirSupport(Vec3),              // Incoming helicopter/airstrike
+    SupplyDrop(Vec3),              // Resource delivery location
+    Retreat(Vec3),                 // Fallback position
+    Reinforcements(Vec3, f32),     // Location, ETA
+    StatusUpdate(String),          // General sitrep
+}
+
+#[derive(Clone, Debug)]
+pub struct InformantTip {
+    pub tip_type: TipType,
+    pub location: Vec3,
+    pub confidence: f32,      // 0.0 to 1.0
+    pub time_received: f32,
+    pub urgency: TipUrgency,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum TipType {
+    EnemyPosition(UnitType, u32),  // Unit type, count
+    PlannedAttack(Vec3, f32),      // Target, ETA
+    WeakPoint(Vec3),               // Vulnerable location
+    SupplyRoute(Vec3, Vec3),       // From, To
+    CommandPost(Vec3),             // High-value target
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum TipUrgency {
+    Low,     // General information
+    Medium,  // Actionable intelligence
+    High,    // Immediate threat
+    Critical, // Imminent danger
+}
+
+#[derive(Clone, Debug)]
+pub struct ReconReport {
+    pub area_scanned: Vec3,
+    pub scan_radius: f32,
+    pub enemies_spotted: Vec<EnemyContact>,
+    pub terrain_info: TerrainIntel,
+    pub scan_time: f32,
+}
+
+#[derive(Clone, Debug)]
+pub struct TerrainIntel {
+    pub cover_points: Vec<Vec3>,
+    pub choke_points: Vec<Vec3>,
+    pub elevation_advantages: Vec<Vec3>,
+    pub escape_routes: Vec<Vec3>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CounterIntelAlert {
+    pub threat_type: CounterIntelThreat,
+    pub detected_position: Vec3,
+    pub alert_time: f32,
+    pub threat_level: f32,    // 0.0 to 1.0
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum CounterIntelThreat {
+    EnemyScout(Entity),        // Enemy reconnaissance detected
+    RadioJamming(Vec3, f32),   // Position, radius
+    InformantCompromised(Vec3), // Blown cover
+    SurveillanceDrone(Entity), // Military surveillance
+}
+
 // ==================== COORDINATION COMPONENTS ====================
 
 #[derive(Component)]

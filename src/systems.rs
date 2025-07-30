@@ -3,7 +3,7 @@ use crate::components::*;
 use crate::resources::*;
 use crate::environmental_systems::EnvironmentalState;
 use crate::utils::{play_tactical_sound, world_to_iso, find_combat_pairs_optimized, apply_combat_damage, clear_invalid_targets, get_default_ability, get_ability_cooldown, get_ability_range, execute_ability_simple};
-use crate::spawners::{spawn_unit, spawn_health_bar};
+use crate::spawners::{spawn_unit, spawn_health_bar, spawn_ovidio, spawn_cartel_intel_network};
 
 // ==================== SETUP SYSTEMS ====================
 
@@ -169,6 +169,9 @@ pub fn setup_game(
                    Vec3::new(-100.0 + i as f32 * 100.0, -50.0, 0.0), 
                    &game_assets);
     }
+    
+    // Deploy intel network
+    spawn_cartel_intel_network(&mut commands, &game_assets);
     
     // Spawn safehouse objective with enhanced graphics
     let safehouse_pos = Vec3::new(0.0, 100.0, 0.0);

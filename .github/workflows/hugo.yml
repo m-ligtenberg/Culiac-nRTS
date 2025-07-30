@@ -60,7 +60,57 @@ jobs:
 
       - name: Install Node.js dependencies
         run: |
+          cd public
           if [[ -f package-lock.json || -f npm-shrinkwrap.json ]]; then npm ci; fi
+
+      - name: Generate development content
+        run: |
+          mkdir -p public/content/posts
+          
+          # Create live changelog post
+          if [ -f CHANGELOG.md ]; then
+            echo "---" > public/content/posts/changelog.md
+            echo "title: \"Live Changelog\"" >> public/content/posts/changelog.md
+            echo "date: $(date -Iseconds)" >> public/content/posts/changelog.md
+            echo "draft: false" >> public/content/posts/changelog.md
+            echo "tags: [\"changelog\", \"updates\", \"development\"]" >> public/content/posts/changelog.md
+            echo "description: \"Automatically updated changelog from the main repository\"" >> public/content/posts/changelog.md
+            echo "---" >> public/content/posts/changelog.md
+            echo "" >> public/content/posts/changelog.md
+            echo "This changelog is automatically updated from the main repository on every commit." >> public/content/posts/changelog.md
+            echo "" >> public/content/posts/changelog.md
+            cat CHANGELOG.md >> public/content/posts/changelog.md
+          fi
+
+          # Create development status post from CLAUDE.md
+          if [ -f CLAUDE.md ]; then
+            echo "---" > public/content/posts/development-status.md
+            echo "title: \"Development Status\"" >> public/content/posts/development-status.md
+            echo "date: $(date -Iseconds)" >> public/content/posts/development-status.md
+            echo "draft: false" >> public/content/posts/development-status.md
+            echo "tags: [\"development\", \"status\", \"features\", \"phase\"]" >> public/content/posts/development-status.md
+            echo "description: \"Current development status and feature implementation\"" >> public/content/posts/development-status.md
+            echo "---" >> public/content/posts/development-status.md
+            echo "" >> public/content/posts/development-status.md
+            echo "This development status is automatically updated from the main repository." >> public/content/posts/development-status.md
+            echo "" >> public/content/posts/development-status.md
+            cat CLAUDE.md >> public/content/posts/development-status.md
+          fi
+
+          # Create recent commits post
+          echo "---" > public/content/posts/recent-commits.md
+          echo "title: \"Recent Development Activity\"" >> public/content/posts/recent-commits.md
+          echo "date: $(date -Iseconds)" >> public/content/posts/recent-commits.md
+          echo "draft: false" >> public/content/posts/recent-commits.md
+          echo "tags: [\"commits\", \"development\", \"activity\"]" >> public/content/posts/recent-commits.md
+          echo "description: \"Latest commits and development activity\"" >> public/content/posts/recent-commits.md
+          echo "---" >> public/content/posts/recent-commits.md
+          echo "" >> public/content/posts/recent-commits.md
+          echo "## Recent Development Activity" >> public/content/posts/recent-commits.md
+          echo "" >> public/content/posts/recent-commits.md
+          echo "Latest commits to the repository:" >> public/content/posts/recent-commits.md
+          echo "" >> public/content/posts/recent-commits.md
+          git log --oneline -10 --pretty=format:"- **%h** %s (%an, %ar)" >> public/content/posts/recent-commits.md
 
       - name: Restore Hugo cache
         id: cache-restore
@@ -76,7 +126,7 @@ jobs:
 
       - name: Build site with Hugo
         run: |
-          hugo --source docs/public \
+          hugo --source public \
             --gc \
             --minify \
             --baseURL "${{ steps.pages.outputs.base_url }}/" \
@@ -92,7 +142,7 @@ jobs:
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/public/public
+          path: public/public
 
   deploy:
     name: Deploy to GitHub Pages
