@@ -66,6 +66,38 @@ pub struct AiDirector {
     pub adaptive_difficulty: bool,
 }
 
+// ==================== INTEL SYSTEM RESOURCE ====================
+
+#[derive(Resource)]
+pub struct IntelSystem {
+    pub global_intel_network: crate::components::IntelNetwork,
+    pub radio_frequency: f32,
+    pub jamming_active: bool,
+    pub jamming_strength: f32,
+    pub intercept_chance: f32,       // Base chance to intercept radio messages
+    pub informant_reliability: f32,  // Base reliability of informant tips
+    pub counter_intel_level: f32,    // Enemy counter-intelligence strength
+}
+
+impl Default for IntelSystem {
+    fn default() -> Self {
+        Self {
+            global_intel_network: crate::components::IntelNetwork {
+                active_intercepts: Vec::new(),
+                informant_reports: Vec::new(),
+                reconnaissance_data: Vec::new(),
+                counter_intel_alerts: Vec::new(),
+            },
+            radio_frequency: 27.185, // Historical Sinaloa Cartel frequency
+            jamming_active: false,
+            jamming_strength: 0.0,
+            intercept_chance: 0.3,
+            informant_reliability: 0.7,
+            counter_intel_level: 0.4,
+        }
+    }
+}
+
 impl Default for AiDirector {
     fn default() -> Self {
         Self {

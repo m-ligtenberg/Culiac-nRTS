@@ -25,6 +25,8 @@ mod unit_systems;
 mod audio_system;
 mod environmental_systems;
 mod config;
+mod auth;
+mod intel_system;
 
 use resources::{*, not_in_menu_phase};
 use systems::*;
@@ -37,6 +39,7 @@ use audio_system::{setup_audio_system, background_music_system, radio_chatter_sy
 use environmental_systems::{EnvironmentalState, EnvironmentalAmbientLight, update_environmental_time, update_ambient_lighting, spawn_weather_particles, update_weather_particles, trigger_weather_change};
 use config::{setup_config_system, config_hotkeys_system, performance_monitor_system};
 use utils::{setup_particle_pool, update_pooled_particles_system, setup_ai_optimizer, optimized_unit_ai_system, adaptive_ai_scheduler_system};
+use intel_system::{IntelSystemPlugin};
 
 fn main() {
     App::new()
@@ -53,6 +56,7 @@ fn main() {
             ..default()
         }))
         .add_plugins(KiraAudioPlugin)
+        .add_plugins(IntelSystemPlugin)
         .init_resource::<GameState>()
         .init_resource::<AiDirector>()
         .init_resource::<Campaign>()

@@ -172,3 +172,115 @@ pub fn spawn_health_bar(commands: &mut Commands, owner: Entity, position: Vec3) 
         },
     ));
 }
+
+// ==================== INTEL OPERATOR SPAWNING ====================
+
+pub fn spawn_intel_operator(
+    commands: &mut Commands,
+    intel_type: IntelType,
+    position: Vec3,
+    game_assets: &Res<GameAssets>,
+) -> Entity {
+    let (detection_range, stealth_level, cooldown_duration) = match intel_type {
+        IntelType::Reconnaissance => (200.0, 0.8, 15.0),  // High stealth, long range
+        IntelType::RadioIntercept => (100.0, 0.6, 8.0),   // Medium stealth, faster intercepts
+        IntelType::Informant => (50.0, 0.9, 30.0),        // Very stealthy, slow reports
+        IntelType::CounterIntel => (150.0, 0.4, 20.0),    // Low stealth, detection focus
+    };
+    
+    let (color, emoji) = match intel_type {
+        IntelType::Reconnaissance => (Color::rgb(0.4, 0.6, 0.8), "👁️"),    // Blue
+        IntelType::RadioIntercept => (Color::rgb(0.8, 0.6, 0.2), "📡"),    // Orange  
+        IntelType::Informant => (Color::rgb(0.6, 0.8, 0.4), "👤"),        // Green
+        IntelType::CounterIntel => (Color::rgb(0.8, 0.4, 0.6), "🕵️"),     // Purple
+    };
+    
+    let iso_position = world_to_iso(position);
+    
+    // Spawn the intel operator
+    let entity = commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color,
+                custom_size: Some(Vec2::new(24.0, 24.0)), // Smaller than combat units
+                ..default()
+            },
+            texture: game_assets.sicario_sprite.clone(), // Reuse existing sprite
+            transform: Transform::from_translation(iso_position),
+            ..default()
+        },
+        IntelOperator {
+            intel_type: intel_type.clone(),
+            detection_range,
+            stealth_level,
+            intel_cooldown: Timer::from_seconds(cooldown_duration, TimerMode::Once),
+            last_intel_time: 0.0,
+        },
+        Movement {
+            target_position: None,
+            speed: 30.0, // Slower movement (stealth focused)
+        },
+        PathfindingAgent {
+            path: Vec::new(),
+            current_waypoint: 0,
+            avoidance_radius: 20.0,
+            max_speed: 30.0,
+            stuck_timer: 0.0,
+        },
+    )).id();
+    
+    // Add emoji overlay
+    commands.spawn((
+        Text2dBundle {
+            text: Text::from_section(
+                emoji,
+                TextStyle {
+                    font_size: 16.0,
+                    color: Color::WHITE,
+                    ..default()
+                }
+            ),
+            transform: Transform::from_translation(iso_position + Vec3::new(0.0, 0.0, 0.1)),
+            ..default()
+        },
+        HealthBar {
+            owner: entity,
+            offset: Vec3::new(0.0, 0.0, 0.1),
+        },
+    ));
+    
+    entity
+}
+
+pub fn spawn_cartel_intel_network(
+    commands: &mut Commands,
+    game_assets: &Res<GameAssets>,
+) {
+    // Spawn a basic intel network for the cartel
+    
+    // Radio intercept operator (hidden in safehouse area)
+    spawn_intel_operator(
+        commands,
+        IntelType::RadioIntercept,
+        Vec3::new(-50.0, 0.0, -30.0),
+        game_assets,
+    );
+    
+    // Reconnaissance scout (mobile, high stealth)
+    spawn_intel_operator(
+        commands,
+        IntelType::Reconnaissance,
+        Vec3::new(0.0, 0.0, 50.0),
+        game_assets,
+    );
+    
+    // Informant network (civilian contact)
+    spawn_intel_operator(
+        commands,
+        IntelType::Informant,
+        Vec3::new(80.0, 0.0, 20.0),
+        game_assets,
+    );
+    
+    println!("🕵️ Intel Network deployed: Radio intercept, Reconnaissance, and Informant assets active");
+}
