@@ -64,6 +64,43 @@ cargo build --release
 ./target/release/culiacan-rts
 ```
 
+## 🛠️ Development
+
+### Changelog Management
+
+This project includes automated changelog management using the `/add-to-changelog` command:
+
+```bash
+# Add a new feature
+./add-to-changelog.sh 1.1.0 added "New feature description"
+
+# Document a bug fix  
+./add-to-changelog.sh 1.0.2 fixed "Bug fix description"
+
+# Add security improvement
+./add-to-changelog.sh 1.0.3 security "Security update description"
+```
+
+**Available change types**: `added`, `changed`, `deprecated`, `removed`, `fixed`, `security`
+
+The script automatically:
+- Creates new version sections with current date
+- Updates `Cargo.toml` version number
+- Maintains [Keep a Changelog](https://keepachangelog.com/) format
+- Offers to commit changes with proper git messages
+
+For more details, see [README_CHANGELOG.md](README_CHANGELOG.md).
+
+### Quick Commands
+
+```bash
+# Source changelog commands in your shell
+source changelog-commands.sh
+
+# Then use:
+add-to-changelog 1.1.0 added "New feature"
+```
+
 ## 📊 Game Features
 
 ### ✅ **Phase 5 Complete - Advanced Features**
