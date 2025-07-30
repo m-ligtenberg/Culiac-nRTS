@@ -8,9 +8,13 @@ pygmentsUseClasses = false
 paginate = 999
 minify = true
 
+# Suppress raw HTML warnings in Markdown rendering
+ignoreLogs = ["warning-goldmark-raw-html"]
+
 
 [taxonomies]
   tag = "tags"
+  author = "authors"
 
 [privacy]
   [privacy.disqus]
@@ -26,8 +30,6 @@ minify = true
   [privacy.youtube]
     disable = true
 
-[Author]
-  name = ""
 
 [params]
   description = ""
