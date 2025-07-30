@@ -13,7 +13,7 @@ use bevy_kira_audio::prelude::{AudioPlugin as KiraAudioPlugin};
 mod components;
 mod resources;
 mod systems;
-mod ui_systems;
+mod ui;
 mod game_systems;
 mod ai;
 mod campaign;
@@ -25,7 +25,7 @@ mod unit_systems;
 
 use resources::{*, not_in_menu_phase};
 use systems::*;
-use ui_systems::*;
+use ui::*;
 use game_systems::*;
 use ai::{ai_director_system, unit_ai_system, difficulty_settings_system};
 use campaign::{campaign_system, Campaign};
