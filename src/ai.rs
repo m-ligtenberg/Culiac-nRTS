@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use rand::{thread_rng, Rng};
 use crate::components::*;
 use crate::resources::*;
-use crate::utils::play_tactical_sound;
+use crate::utils::{play_tactical_sound, calculate_flanking_position, count_living_units_by_faction, calculate_unit_ratio, calculate_kill_ratio};
 use crate::spawners::spawn_unit;
 
 // ==================== AI DIRECTOR SYSTEM ====================
@@ -17,27 +17,14 @@ pub fn ai_director_system(
 ) {
     ai_director.last_spawn_time += time.delta_seconds();
     
-    // Enhanced player performance calculation
-    let cartel_units = unit_query.iter().filter(|u| u.faction == Faction::Cartel && u.health > 0.0).count();
-    let military_units = unit_query.iter().filter(|u| u.faction == Faction::Military && u.health > 0.0).count();
+    // Enhanced player performance calculation using utility functions
+    let cartel_units = count_living_units_by_faction(&unit_query, Faction::Cartel);
+    let military_units = count_living_units_by_faction(&unit_query, Faction::Military);
     let ovidio_alive = unit_query.iter().any(|u| u.unit_type == UnitType::Ovidio && u.health > 0.0);
     
-    // Count dead units for performance metrics
-    let dead_cartel = unit_query.iter().filter(|u| u.faction == Faction::Cartel && u.health <= 0.0).count();
-    let dead_military = unit_query.iter().filter(|u| u.faction == Faction::Military && u.health <= 0.0).count();
-    
-    // Advanced performance calculation considering multiple factors
-    let unit_ratio = if military_units > 0 { 
-        cartel_units as f32 / (cartel_units + military_units) as f32 
-    } else { 
-        1.0 
-    };
-    
-    let kill_ratio = if dead_cartel + dead_military > 0 {
-        dead_military as f32 / (dead_cartel + dead_military) as f32
-    } else {
-        0.5
-    };
+    // Advanced performance calculation using utility functions
+    let unit_ratio = calculate_unit_ratio(&unit_query, Faction::Cartel, Faction::Military);
+    let kill_ratio = calculate_kill_ratio(&unit_query, Faction::Cartel, Faction::Military);
     
     let ovidio_factor = if ovidio_alive { 1.0 } else { 0.0 };
     let time_factor = (game_state.mission_timer / 300.0).min(1.0); // Normalize to 5 minutes
@@ -189,7 +176,7 @@ fn choose_military_behavior(
                 TacticalBehavior::RetreatAndRegroup(retreat_pos)
             } else if nearby_enemies > 2 && nearby_allies < 2 {
                 // Outnumbered - use flanking
-                let flank_pos = calculate_flanking_position(unit_pos, primary_target, cartel_positions);
+                let flank_pos = calculate_flanking_position_legacy(unit_pos, primary_target, cartel_positions);
                 TacticalBehavior::FlankingManeuver(flank_pos)
             } else if distance_to_target < 80.0 {
                 // Close range - assault
@@ -396,7 +383,7 @@ fn execute_military_behavior(
             target + offset
         },
         TacticalBehavior::FlankingManeuver(target) => {
-            calculate_flanking_position(current_pos, target, cartel_positions)
+            calculate_flanking_position(current_pos, target, cartel_positions, 120.0)
         },
         TacticalBehavior::AdvanceCarefully(target) => {
             // Move toward target but maintain distance from enemies
@@ -467,23 +454,8 @@ fn execute_cartel_behavior(
 
 // ==================== TACTICAL UTILITY FUNCTIONS ====================
 
-fn calculate_flanking_position(unit_pos: Vec3, target_pos: Vec3, enemy_positions: &[Vec3]) -> Vec3 {
-    let to_target = (target_pos - unit_pos).normalize();
-    let right_flank = Vec3::new(-to_target.y, to_target.x, 0.0) * 120.0;
-    let left_flank = Vec3::new(to_target.y, -to_target.x, 0.0) * 120.0;
-    
-    let right_pos = target_pos + right_flank;
-    let left_pos = target_pos + left_flank;
-    
-    // Choose the flank position with fewer enemies nearby
-    let right_enemy_count = enemy_positions.iter()
-        .filter(|&&pos| right_pos.distance(pos) < 100.0)
-        .count();
-    let left_enemy_count = enemy_positions.iter()
-        .filter(|&&pos| left_pos.distance(pos) < 100.0)
-        .count();
-    
-    if right_enemy_count <= left_enemy_count { right_pos } else { left_pos }
+fn calculate_flanking_position_legacy(unit_pos: Vec3, target_pos: Vec3, enemy_positions: &[Vec3]) -> Vec3 {
+    calculate_flanking_position(unit_pos, target_pos, enemy_positions, 120.0)
 }
 
 fn find_retreat_position(unit_pos: Vec3, threat_positions: &[Vec3]) -> Vec3 {

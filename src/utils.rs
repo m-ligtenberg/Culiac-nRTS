@@ -1,3 +1,15 @@
+// Re-export all utility modules
+pub use self::{
+    formation::*,
+    unit_queries::*,
+};
+
+// Utility modules
+pub mod formation;
+pub mod unit_queries;
+pub mod particles;
+pub mod ui_builders;
+
 use bevy::prelude::*;
 
 // ==================== UTILITY FUNCTIONS ====================
@@ -11,6 +23,9 @@ pub fn play_tactical_sound(sound_type: &str, description: &str) {
         "radio" => info!("📻 *RADIO STATIC* {} 📻", description),
         "vehicle" => info!("🚗 *ENGINE SOUNDS* {} 🚗", description),
         "construction" => info!("🔨 *CONSTRUCTION* {} 🔨", description),
+        "ability" => info!("⚡ *ABILITY* {} ⚡", description),
+        "combat" => info!("💥 *COMBAT* {} 💥", description),
+        "alert" => info!("🚨 *ALERT* {} 🚨", description),
         _ => info!("🎵 {} 🎵", description),
     }
 }

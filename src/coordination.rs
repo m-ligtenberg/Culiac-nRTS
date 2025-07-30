@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 use rand::{thread_rng, Rng};
 use crate::components::*;
-use crate::resources::*;
-use crate::utils::play_tactical_sound;
+use crate::utils::{play_tactical_sound, find_optimal_formation_center, calculate_formation_position};
 
 // ==================== SQUAD MANAGEMENT SYSTEM ====================
 
@@ -125,8 +124,8 @@ fn create_faction_squads(
 }
 
 fn calculate_group_center(units: &[(Entity, &Unit, &Transform)]) -> Vec3 {
-    let sum: Vec3 = units.iter().map(|(_, _, transform)| transform.translation).sum();
-    sum / units.len() as f32
+    let positions: Vec<Vec3> = units.iter().map(|(_, _, transform)| transform.translation).collect();
+    find_optimal_formation_center(&positions)
 }
 
 fn determine_squad_type(units: &[(Entity, &Unit, &Transform)], faction: Faction) -> SquadType {
@@ -330,65 +329,35 @@ pub fn formation_movement_system(
 ) {
     for (mut movement, transform, formation, squad) in unit_query.iter_mut() {
         let formation_position = calculate_formation_position(
-            formation,
-            &squad.current_objective,
+            formation.formation_type.clone(),
+            formation.position_in_formation,
             formation.formation_center,
             formation.formation_facing,
+            squad.members.len(),
         );
         
         // Maintain formation cohesion
         let distance_to_formation_pos = transform.translation.distance(formation_position);
         
         if distance_to_formation_pos > 30.0 {
-            movement.target_position = Some(formation_position);
+            movement.target_position = Some(calculate_formation_position_legacy(formation, formation.formation_center, formation.formation_facing));
         }
     }
 }
 
-fn calculate_formation_position(
+fn calculate_formation_position_legacy(
     formation: &Formation,
-    objective: &SquadObjective,
     center: Vec3,
     facing: f32,
 ) -> Vec3 {
-    let position_offset = match formation.formation_type {
-        FormationType::Line => {
-            let spacing = 40.0;
-            let offset_x = (formation.position_in_formation as f32 - 2.0) * spacing;
-            Vec3::new(offset_x, 0.0, 0.0)
-        },
-        FormationType::Circle => {
-            let radius = 60.0;
-            let angle = (formation.position_in_formation as f32 / 5.0) * std::f32::consts::PI * 2.0;
-            Vec3::new(angle.cos() * radius, angle.sin() * radius, 0.0)
-        },
-        FormationType::Wedge => {
-            let row = formation.position_in_formation / 2;
-            let col = formation.position_in_formation % 2;
-            Vec3::new((col as f32 - 0.5) * 30.0, -(row as f32) * 40.0, 0.0)
-        },
-        FormationType::Flanking => {
-            let side = if formation.position_in_formation % 2 == 0 { -1.0 } else { 1.0 };
-            Vec3::new(side * 80.0, (formation.position_in_formation as f32 / 2.0) * 30.0, 0.0)
-        },
-        FormationType::Overwatch => {
-            let spacing = 50.0;
-            Vec3::new(0.0, formation.position_in_formation as f32 * spacing, 0.0)
-        },
-        FormationType::Retreat => {
-            let spacing = 35.0;
-            Vec3::new((formation.position_in_formation as f32 - 1.0) * spacing, 20.0, 0.0)
-        },
-    };
-    
-    // Rotate offset by formation facing direction
-    let rotated_offset = Vec3::new(
-        position_offset.x * facing.cos() - position_offset.y * facing.sin(),
-        position_offset.x * facing.sin() + position_offset.y * facing.cos(),
-        0.0,
-    );
-    
-    center + rotated_offset
+    // Use the new utility function
+    calculate_formation_position(
+        formation.formation_type.clone(),
+        formation.position_in_formation,
+        center,
+        facing,
+        5, // Default unit count for legacy compatibility
+    )
 }
 
 // ==================== TACTICAL COMMUNICATION SYSTEM ====================
