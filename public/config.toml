@@ -1,13 +1,20 @@
 baseURL = "https://m-ligtenberg.github.io/CuliacanRTS/"
 languageCode = "en-us"
 title = "CuliacanRTS devblog"
-disableKinds = ["section", "categories"]
+disableKinds = ["section"]
 disqusShortname = ""
 pygmentsCodeFences = false
 pygmentsUseClasses = false
-paginate = 999
-minify = true
 
+[pagination]
+  pagerSize = 999
+minify = true
+ignoreLogs = ['warning-goldmark-raw-html']
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
 
 [taxonomies]
   tag = "tags"
@@ -19,19 +26,16 @@ minify = true
     disable = true
   [privacy.instagram]
     disable = true
-  [privacy.twitter]
+  [privacy.x]
     disable = true
   [privacy.vimeo]
     disable = true
   [privacy.youtube]
     disable = true
 
-[Author]
-  name = ""
-
 [params]
-  description = ""
-  author = ""
+  description = "Battle of Culiacán RTS Development Blog"
+  author = "CuliacanRTS Team"
   copyright = ""
   logo = ""
 
@@ -45,7 +49,7 @@ minify = true
   twitter = ""
 
 [permalinks]
-  posts = "/:year/:month/:day/:filename"
+  posts = "/:year/:month/:day/:contentbasename"
   pages = "/:slug"
 
 [outputs]
