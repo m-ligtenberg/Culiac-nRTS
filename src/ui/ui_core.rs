@@ -2,48 +2,72 @@ use crate::components::*;
 use crate::resources::*;
 use bevy::prelude::*;
 
+// Type aliases to reduce complexity
+type StatusTextQuery<'a> = Query<
+    'a,
+    'a,
+    &'a mut Text,
+    (
+        With<StatusText>,
+        Without<WaveText>,
+        Without<ScoreText>,
+        Without<DifficultyDisplay>,
+    ),
+>;
+
+type WaveTextQuery<'a> = Query<
+    'a,
+    'a,
+    &'a mut Text,
+    (
+        With<WaveText>,
+        Without<StatusText>,
+        Without<ScoreText>,
+        Without<DifficultyDisplay>,
+    ),
+>;
+
+type ScoreTextQuery<'a> = Query<
+    'a,
+    'a,
+    &'a mut Text,
+    (
+        With<ScoreText>,
+        Without<StatusText>,
+        Without<WaveText>,
+        Without<DifficultyDisplay>,
+    ),
+>;
+
+type DifficultyTextQuery<'a> = Query<
+    'a,
+    'a,
+    &'a mut Text,
+    (
+        With<DifficultyDisplay>,
+        Without<StatusText>,
+        Without<WaveText>,
+        Without<ScoreText>,
+    ),
+>;
+
+type HealthBarQuery<'a> = Query<
+    'a,
+    'a,
+    (Entity, &'a mut Transform, &'a mut Sprite, &'a HealthBar),
+    (With<HealthBar>, Without<Unit>),
+>;
+
 // ==================== CORE UI UPDATE SYSTEMS ====================
 
 pub fn ui_update_system(
     game_state: Res<GameState>,
     ai_director: Res<AiDirector>,
     unit_query: Query<&Unit>,
-    mut status_query: Query<
-        &mut Text,
-        (
-            With<StatusText>,
-            Without<WaveText>,
-            Without<ScoreText>,
-            Without<DifficultyDisplay>,
-        ),
-    >,
-    mut wave_query: Query<
-        &mut Text,
-        (
-            With<WaveText>,
-            Without<StatusText>,
-            Without<ScoreText>,
-            Without<DifficultyDisplay>,
-        ),
-    >,
-    mut score_query: Query<
-        &mut Text,
-        (
-            With<ScoreText>,
-            Without<StatusText>,
-            Without<WaveText>,
-            Without<DifficultyDisplay>,
-        ),
-    >,
-    mut difficulty_query: Query<
-        &mut Text,
-        (
-            With<DifficultyDisplay>,
-            Without<StatusText>,
-            Without<WaveText>,
-            Without<ScoreText>,
-        ),
-    >,
+    mut status_query: StatusTextQuery,
+    mut wave_query: WaveTextQuery,
+    mut score_query: ScoreTextQuery,
+    mut difficulty_query: DifficultyTextQuery,
 ) {
     // Count units by faction
     let cartel_count = unit_query
@@ -121,17 +145,18 @@ pub fn ui_update_system(
     }
     // Creative toevoeging: indien in debug mode, log extra informatie voor een beter overzicht
     if cfg!(debug_assertions) {
-        info!("DEBUG: Game Phase: {:?}, Unit Count: {}", game_state.game_phase, unit_query.iter().count());
+        info!(
+            "DEBUG: Game Phase: {:?}, Unit Count: {}",
+            game_state.game_phase,
+            unit_query.iter().count()
+        );
     }
 }
 
 pub fn health_bar_system(
     mut commands: Commands,
     unit_query: Query<(Entity, &Unit, &Transform), Changed<Unit>>,
-    mut health_bar_query: Query<
-        (Entity, &mut Transform, &mut Sprite, &HealthBar),
-        (With<HealthBar>, Without<Unit>),
-    >,
+    mut health_bar_query: HealthBarQuery,
 ) {
     // Update health bars when units change
     for (unit_entity, unit, unit_transform) in unit_query.iter() {

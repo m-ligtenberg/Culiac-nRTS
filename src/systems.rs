@@ -425,17 +425,20 @@ pub fn movement_system(
 pub fn combat_system(
     mut commands: Commands,
     mut unit_query: Query<(Entity, &mut Unit, &Transform)>,
+    immutable_unit_query: Query<(Entity, &Unit, &Transform)>,
     effect_query: Query<&AbilityEffect>,
     environmental_state: Res<EnvironmentalState>,
     time: Res<Time>,
 ) {
     // Find combat pairs and calculate damage - prioritize assigned targets (optimized)
-    let units: Vec<_> = unit_query.iter().collect();
-    let combat_events =
-        find_combat_pairs_optimized(&units, environmental_state.visibility_modifier);
+    let combat_events = find_combat_pairs_optimized(
+        &immutable_unit_query,
+        environmental_state.visibility_modifier,
+    );
 
     // Apply combat damage and effects
-    for (attacker, target, damage) in combat_events {
+    for (attacker, target) in combat_events {
+        let damage = 25.0; // Base damage value
         apply_combat_damage(
             &mut commands,
             attacker,

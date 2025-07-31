@@ -1,15 +1,20 @@
 use crate::components::*;
 use bevy::prelude::*;
 
+// Type aliases to reduce complexity
+type MiniMapIconQuery<'a> = Query<
+    'a,
+    'a,
+    (Entity, &'a mut Style, &'a MiniMapIcon),
+    (With<MiniMapIcon>, Without<Transform>),
+>;
+
 // ==================== MINIMAP SYSTEM ====================
 
 pub fn minimap_system(
     mut commands: Commands,
     unit_query: Query<(&Transform, &Unit), Without<MiniMapIcon>>,
-    minimap_icon_query: Query<
-        (Entity, &mut Style, &MiniMapIcon),
-        (With<MiniMapIcon>, Without<Transform>),
-    >,
+    minimap_icon_query: MiniMapIconQuery,
     minimap_query: Query<Entity, With<MiniMap>>,
 ) {
     if let Ok(minimap_entity) = minimap_query.get_single() {

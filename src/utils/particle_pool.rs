@@ -2,6 +2,21 @@ use crate::components::*;
 use bevy::prelude::*;
 use std::collections::VecDeque;
 
+// Type aliases to reduce complexity
+type PooledParticleQuery<'a> = Query<
+    'a,
+    'a,
+    (
+        Entity,
+        &'a mut Transform,
+        &'a mut PooledParticle,
+        &'a ParticleVelocity,
+        &'a mut Visibility,
+        Option<&'a mut Sprite>,
+        Option<&'a mut Text>,
+    ),
+>;
+
 // ==================== PARTICLE POOLING SYSTEM ====================
 
 #[derive(Resource)]
@@ -159,15 +174,7 @@ pub struct ParticleVelocity(pub Vec3);
 pub fn update_pooled_particles_system(
     mut commands: Commands,
     mut particle_pool: ResMut<ParticlePool>,
-    mut particle_query: Query<(
-        Entity,
-        &mut Transform,
-        &mut PooledParticle,
-        &ParticleVelocity,
-        &mut Visibility,
-        Option<&mut Sprite>,
-        Option<&mut Text>,
-    )>,
+    mut particle_query: PooledParticleQuery,
     time: Res<Time>,
 ) {
     for (entity, mut transform, mut particle, velocity, mut visibility, sprite_opt, text_opt) in

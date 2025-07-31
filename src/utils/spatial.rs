@@ -20,14 +20,38 @@ impl GridCell {
     pub fn get_neighbors(&self) -> Vec<GridCell> {
         vec![
             *self,
-            GridCell { x: self.x - 1, y: self.y - 1 },
-            GridCell { x: self.x, y: self.y - 1 },
-            GridCell { x: self.x + 1, y: self.y - 1 },
-            GridCell { x: self.x - 1, y: self.y },
-            GridCell { x: self.x + 1, y: self.y },
-            GridCell { x: self.x - 1, y: self.y + 1 },
-            GridCell { x: self.x, y: self.y + 1 },
-            GridCell { x: self.x + 1, y: self.y + 1 },
+            GridCell {
+                x: self.x - 1,
+                y: self.y - 1,
+            },
+            GridCell {
+                x: self.x,
+                y: self.y - 1,
+            },
+            GridCell {
+                x: self.x + 1,
+                y: self.y - 1,
+            },
+            GridCell {
+                x: self.x - 1,
+                y: self.y,
+            },
+            GridCell {
+                x: self.x + 1,
+                y: self.y,
+            },
+            GridCell {
+                x: self.x - 1,
+                y: self.y + 1,
+            },
+            GridCell {
+                x: self.x,
+                y: self.y + 1,
+            },
+            GridCell {
+                x: self.x + 1,
+                y: self.y + 1,
+            },
         ]
     }
 }
@@ -51,6 +75,9 @@ impl SpatialGrid {
 
     pub fn insert_unit(&mut self, entity: Entity, position: Vec3, max_range: f32) {
         let cell = GridCell::from_position(position, self.cell_size);
-        self.units.entry(cell).or_default().push((entity, position, max_range));
+        self.units
+            .entry(cell)
+            .or_default()
+            .push((entity, position, max_range));
     }
 }

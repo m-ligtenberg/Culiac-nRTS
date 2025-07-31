@@ -1,9 +1,11 @@
 use crate::campaign::{get_objective_summary, Campaign, MissionConfig};
 use crate::components::*;
 use crate::resources::*;
-use crate::save_system::{has_save_file, load_game, save_game};
+use crate::save::save_system::{has_save_file, load_game, save_game};
 use crate::utils::play_tactical_sound;
 use bevy::prelude::*;
+
+// Simplified query without complex type alias
 
 // ==================== MISSION BRIEFING SYSTEM ====================
 
@@ -321,7 +323,7 @@ fn create_mission_briefing_ui(
                 });
 
                 parent.spawn(TextBundle::from_section(
-                    format!("⏰ Time Limit: {:.0} seconds", time_limit),
+                    format!("⏰ Time Limit: {time_limit:.0} seconds"),
                     TextStyle {
                         font_size: 18.0,
                         color: Color::rgb(1.0, 0.5, 0.5),

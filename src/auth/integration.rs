@@ -1,4 +1,5 @@
 use crate::auth::{start_auth_server_background, AuthError};
+use bevy::log::{info, warn};
 use std::env;
 
 pub struct GameAuthIntegration {
@@ -35,11 +36,11 @@ impl GameAuthIntegration {
 
     pub async fn initialize(&self) -> Result<(), AuthError> {
         if !self.auth_enabled {
-            println!("Authentication system disabled");
+            info!("Authentication system disabled");
             return Ok(());
         }
 
-        println!("Initializing authentication system...");
+        info!("Initializing authentication system...");
 
         // Set up environment variables if not set
         self.setup_default_environment();
@@ -47,27 +48,27 @@ impl GameAuthIntegration {
         // Start authentication server in background
         start_auth_server_background(self.auth_server_port).await?;
 
-        println!("Authentication system initialized successfully");
-        println!(
+        info!("Authentication system initialized successfully");
+        info!(
             "API endpoints available at: http://localhost:{}/api",
             self.auth_server_port
         );
-        println!("");
-        println!("Available endpoints:");
-        println!("  POST /api/auth/register          - User registration");
-        println!("  POST /api/auth/login             - User login");
-        println!("  POST /api/auth/logout            - User logout");
-        println!("  POST /api/auth/refresh           - Refresh access token");
-        println!("  GET  /api/auth/profile           - Get user profile");
-        println!("  PUT  /api/auth/profile           - Update user profile");
-        println!("  POST /api/auth/change-password   - Change password");
-        println!("  POST /api/auth/reset-password    - Request password reset");
-        println!("  GET  /api/auth/oauth/google      - Google OAuth login");
-        println!("  GET  /api/auth/oauth/github      - GitHub OAuth login");
-        println!("  GET  /api/auth/oauth/discord     - Discord OAuth login");
-        println!("  GET  /api/info/health            - Health check");
-        println!("  GET  /api/info/stats             - Service statistics");
-        println!("");
+        info!("");
+        info!("Available endpoints:");
+        info!("  POST /api/auth/register          - User registration");
+        info!("  POST /api/auth/login             - User login");
+        info!("  POST /api/auth/logout            - User logout");
+        info!("  POST /api/auth/refresh           - Refresh access token");
+        info!("  GET  /api/auth/profile           - Get user profile");
+        info!("  PUT  /api/auth/profile           - Update user profile");
+        info!("  POST /api/auth/change-password   - Change password");
+        info!("  POST /api/auth/reset-password    - Request password reset");
+        info!("  GET  /api/auth/oauth/google      - Google OAuth login");
+        info!("  GET  /api/auth/oauth/github      - GitHub OAuth login");
+        info!("  GET  /api/auth/oauth/discord     - Discord OAuth login");
+        info!("  GET  /api/info/health            - Health check");
+        info!("  GET  /api/info/stats             - Service statistics");
+        info!("");
 
         Ok(())
     }
@@ -79,7 +80,7 @@ impl GameAuthIntegration {
                 "JWT_SECRET",
                 "culiacan-rts-development-secret-change-in-production",
             );
-            println!(
+            warn!(
                 "⚠️  Using default JWT secret. Set JWT_SECRET environment variable in production!"
             );
         }
@@ -87,7 +88,7 @@ impl GameAuthIntegration {
         // Set up default database URL if not provided
         if env::var("DATABASE_URL").is_err() {
             env::set_var("DATABASE_URL", "sqlite:culiacan_rts_auth.db");
-            println!("Using SQLite database: culiacan_rts_auth.db");
+            info!("Using SQLite database: culiacan_rts_auth.db");
         }
 
         // Set up default admin user if environment variables are provided
@@ -96,24 +97,24 @@ impl GameAuthIntegration {
             env::var("ADMIN_EMAIL"),
             env::var("ADMIN_PASSWORD"),
         ) {
-            println!("Admin user will be created from environment variables");
+            info!("Admin user will be created from environment variables");
         } else {
             // Set up default admin for development
             env::set_var("ADMIN_USERNAME", "admin");
             env::set_var("ADMIN_EMAIL", "admin@culiacan-rts.local");
             env::set_var("ADMIN_PASSWORD", "admin123");
-            println!("⚠️  Creating default admin user (admin/admin123). Change in production!");
+            warn!("⚠️  Creating default admin user (admin/admin123). Change in production!");
         }
 
         // OAuth configuration hints
         if env::var("GOOGLE_CLIENT_ID").is_err() {
-            println!("💡 Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for Google OAuth");
+            info!("💡 Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for Google OAuth");
         }
         if env::var("GITHUB_CLIENT_ID").is_err() {
-            println!("💡 Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET for GitHub OAuth");
+            info!("💡 Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET for GitHub OAuth");
         }
         if env::var("DISCORD_CLIENT_ID").is_err() {
-            println!("💡 Set DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET for Discord OAuth");
+            info!("💡 Set DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET for Discord OAuth");
         }
     }
 

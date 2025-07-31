@@ -1,7 +1,8 @@
 use crate::components::GamePhase;
 use crate::components::{Faction, Unit, UnitType};
 use crate::resources::GameState;
-use crate::save_system::{CampaignProgress, DifficultyLevel, MissionId};
+use crate::save::save_system::{CampaignProgress, DifficultyLevel, MissionId};
+use bevy::log::info;
 use bevy::prelude::*;
 
 // ==================== CAMPAIGN MANAGEMENT ====================
@@ -53,7 +54,7 @@ impl PoliticalPressure {
 
     pub fn add_civilian_impact(&mut self, impact: f32) {
         self.civilian_impact = (self.civilian_impact + impact * 0.1).clamp(0.0, 1.0);
-        println!(
+        info!(
             "📰 Civilian casualties reported - Political pressure increasing: {:.1}%",
             self.civilian_impact * 100.0
         );
@@ -61,7 +62,7 @@ impl PoliticalPressure {
 
     pub fn add_economic_disruption(&mut self, disruption: f32) {
         self.economic_disruption = (self.economic_disruption + disruption * 0.15).clamp(0.0, 1.0);
-        println!(
+        info!(
             "💼 Economic disruption spreads - Business leaders demand action: {:.1}%",
             self.economic_disruption * 100.0
         );
@@ -69,7 +70,7 @@ impl PoliticalPressure {
 
     pub fn increase_media_attention(&mut self, attention: f32) {
         self.media_attention = (self.media_attention + attention * 0.1).clamp(0.0, 1.0);
-        println!(
+        info!(
             "📺 International media coverage intensifies - Global pressure: {:.1}%",
             self.media_attention * 100.0
         );
@@ -77,7 +78,7 @@ impl PoliticalPressure {
 
     pub fn apply_political_family_pressure(&mut self, pressure: f32) {
         self.political_families = (self.political_families + pressure * 0.2).clamp(0.0, 1.0);
-        println!(
+        info!(
             "🏛️ Political families demand resolution - Elite pressure: {:.1}%",
             self.political_families * 100.0
         );
@@ -85,7 +86,7 @@ impl PoliticalPressure {
 
     pub fn reduce_military_morale(&mut self, reduction: f32) {
         self.military_morale = (self.military_morale + reduction * 0.12).clamp(0.0, 1.0);
-        println!(
+        info!(
             "⚔️ Military casualties mount - Troop morale declining: {:.1}%",
             self.military_morale * 100.0
         );
@@ -405,7 +406,7 @@ pub fn campaign_system(
             // Every 45 seconds
             PRESSURE_TIMER = 0.0;
             let pressure_level = campaign.political_pressure.get_pressure_level();
-            println!(
+            info!(
                 "🏛️ Political Pressure Status: {:?} ({:.1}% total)",
                 pressure_level,
                 campaign.political_pressure.total_pressure * 100.0
@@ -413,10 +414,10 @@ pub fn campaign_system(
 
             match pressure_level {
                 PressureLevel::Critical => {
-                    println!("📞 Presidential advisors urging immediate resolution")
+                    info!("📞 Presidential advisors urging immediate resolution")
                 }
                 PressureLevel::Unbearable => {
-                    println!("📞 BREAKING: Presidential intervention imminent - ceasefire likely")
+                    info!("📞 BREAKING: Presidential intervention imminent - ceasefire likely")
                 }
                 _ => {}
             }

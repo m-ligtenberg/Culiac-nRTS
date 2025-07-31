@@ -4,6 +4,7 @@ use crate::unit_systems::{
     apply_weapon_upgrades, configure_unit_stats, get_unit_abilities, get_unit_color, get_unit_emoji,
 };
 use crate::utils::world_to_iso;
+use bevy::log::info;
 use bevy::prelude::*;
 
 // ==================== UNIT SPAWNING FUNCTIONS ====================
@@ -279,7 +280,7 @@ pub fn spawn_cartel_intel_network(commands: &mut Commands, game_assets: &Res<Gam
         game_assets,
     );
 
-    println!(
+    info!(
         "🕵️ Intel Network deployed: Radio intercept, Reconnaissance, and Informant assets active"
     );
 }

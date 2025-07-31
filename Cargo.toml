@@ -17,7 +17,7 @@ dirs = "5.0"
 # Authentication & Web Server
 tokio = { version = "1.0", features = ["full"] }
 axum = { version = "0.7", features = ["macros"] }
-tower = "0.4"
+tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 
 # Database
@@ -50,3 +50,6 @@ harness = false
 [[bin]]
 name = "culiacan-rts"
 path = "src/main.rs"
+
+[dev-dependencies]
+criterion = { version = "0.7.0", features = ["html_reports"] }

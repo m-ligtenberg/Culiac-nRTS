@@ -1,6 +1,20 @@
 use crate::components::*;
 use crate::resources::*;
 use bevy::prelude::*;
+
+// Type aliases to reduce complexity
+type OptimizedUnitQuery<'a> = Query<
+    'a,
+    'a,
+    (
+        Entity,
+        &'a mut Unit,
+        &'a Transform,
+        &'a mut Movement,
+        Option<&'a mut AiCache>,
+    ),
+    Without<Objective>,
+>;
 use std::collections::VecDeque;
 
 // ==================== TIME-SLICED AI OPTIMIZATION SYSTEM ====================
@@ -57,16 +71,7 @@ impl Default for AiCache {
 // Time-sliced AI system that processes only a subset of units per frame
 pub fn optimized_unit_ai_system(
     mut ai_scheduler: ResMut<AiScheduler>,
-    mut unit_query: Query<
-        (
-            Entity,
-            &mut Unit,
-            &Transform,
-            &mut Movement,
-            Option<&mut AiCache>,
-        ),
-        Without<Objective>,
-    >,
+    mut unit_query: OptimizedUnitQuery,
     time: Res<Time>,
     game_state: Res<GameState>,
 ) {

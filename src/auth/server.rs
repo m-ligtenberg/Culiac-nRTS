@@ -15,6 +15,7 @@ use axum::{
     routing::{get, post, put},
     Router,
 };
+use bevy::log::{error, info};
 use serde_json::json;
 use std::{env, sync::Arc, time::Duration};
 use tokio::time;
@@ -147,7 +148,7 @@ impl AuthServer {
 
     pub async fn start_server(self, port: u16) -> Result<(), AuthError> {
         let addr = format!("0.0.0.0:{}", port);
-        println!("Authentication server starting on {}", addr);
+        info!("Authentication server starting on {}", addr);
 
         // Start background cleanup task
         let handlers_clone = self.handlers.clone();
@@ -156,7 +157,7 @@ impl AuthServer {
             loop {
                 interval.tick().await;
                 if let Err(e) = cleanup_expired_data(&handlers_clone.auth_db.pool).await {
-                    eprintln!("Failed to clean up expired data: {}", e);
+                    error!("Failed to clean up expired data: {}", e);
                 }
             }
         });
@@ -256,11 +257,11 @@ pub async fn start_auth_server_background(port: u16) -> Result<(), AuthError> {
 
     tokio::spawn(async move {
         if let Err(e) = server.start_server(port).await {
-            eprintln!("Auth server error: {}", e);
+            error!("Auth server error: {}", e);
         }
     });
 
-    println!(
+    info!(
         "Authentication server started in background on port {}",
         port
     );

@@ -248,7 +248,7 @@ pub fn get_unit_emoji(unit_type: &UnitType) -> &'static str {
 }
 
 pub fn get_unit_color(unit_type: &UnitType, faction: &Faction) -> Color {
-    let base_color = match faction {
+    match faction {
         Faction::Cartel => match unit_type {
             UnitType::Ovidio => Color::GOLD,
             UnitType::Sniper => Color::MAROON,
@@ -264,8 +264,7 @@ pub fn get_unit_color(unit_type: &UnitType, faction: &Faction) -> Color {
             _ => Color::GREEN,
         },
         _ => Color::WHITE,
-    };
-    base_color
+    }
 }
 
 // ==================== WEAPON UPGRADE SYSTEM ====================

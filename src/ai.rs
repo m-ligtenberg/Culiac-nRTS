@@ -411,7 +411,7 @@ fn execute_military_behavior(
             target + offset
         }
         TacticalBehavior::FlankingManeuver(target) => {
-            calculate_flanking_position(current_pos, target, cartel_positions, 120.0)
+            calculate_flanking_position(current_pos, target, 120.0)
         }
         TacticalBehavior::AdvanceCarefully(target) => {
             // Move toward target but maintain distance from enemies
@@ -486,9 +486,9 @@ fn execute_cartel_behavior(
 fn calculate_flanking_position_legacy(
     unit_pos: Vec3,
     target_pos: Vec3,
-    enemy_positions: &[Vec3],
+    _enemy_positions: &[Vec3],
 ) -> Vec3 {
-    calculate_flanking_position(unit_pos, target_pos, enemy_positions, 120.0)
+    calculate_flanking_position(unit_pos, target_pos, 120.0)
 }
 
 fn find_retreat_position(unit_pos: Vec3, threat_positions: &[Vec3]) -> Vec3 {
@@ -587,24 +587,6 @@ fn count_nearby_military_units(pos: Vec3, _all_units: &[Vec3], radius: f32) -> u
 }
 
 // ==================== DIFFICULTY CALCULATION FUNCTIONS ====================
-
-// Tijdelijke placeholder implementaties
-fn calculate_kill_ratio(_unit_query: &Query<&Unit>, _faction1: Faction, _faction2: Faction) -> f32 {
-    0.5
-}
-
-fn calculate_unit_ratio(_unit_query: &Query<&Unit>, _faction1: Faction, _faction2: Faction) -> f32 {
-    1.0
-}
-
-// Tijdelijke placeholder implementaties
-fn calculate_kill_ratio(_unit_query: &Query<&Unit>, _faction1: Faction, _faction2: Faction) -> f32 {
-    0.5
-}
-
-fn calculate_unit_ratio(_unit_query: &Query<&Unit>, _faction1: Faction, _faction2: Faction) -> f32 {
-    1.0
-}
 
 fn calculate_adaptive_modifier(player_performance: f32, mission_time: f32) -> f32 {
     // Base adaptive scaling

@@ -897,7 +897,7 @@ fn create_load_menu_ui(commands: &mut Commands) {
 
 // ==================== VICTORY/DEFEAT SYSTEM ====================
 
-pub fn victory_defeat_system(
+pub fn victory_defeat_system_old(
     mut commands: Commands,
     mut game_state: ResMut<GameState>,
     campaign: Res<Campaign>,

@@ -3,21 +3,40 @@ use crate::utils::play_tactical_sound;
 use bevy::ecs::system::ParamSet;
 use bevy::prelude::*;
 
+// Type aliases to reduce complexity
+type UnitSelectionQueries<'w, 's> = ParamSet<
+    'w,
+    's,
+    (
+        Query<'w, 's, (Entity, &'w Transform, &'w Unit, Option<&'w Selected>)>,
+        Query<'w, 's, &'w mut Unit>,
+    ),
+>;
+
+type SelectedUnitQuery<'a> =
+    Query<'a, 'a, (Entity, &'a Transform, &'a Selected), (With<Unit>, Changed<Selected>)>;
+
+type SelectionIndicatorQuery<'a> =
+    Query<'a, 'a, (Entity, &'a mut Transform), (With<SelectionIndicator>, Without<Unit>)>;
+
+type TargetIndicatorQuery<'a> =
+    Query<'a, 'a, (Entity, &'a mut Transform), (With<TargetIndicator>, Without<Unit>)>;
+
 // ==================== UNIT SELECTION SYSTEM ====================
 
 pub fn unit_selection_system(
     mut commands: Commands,
-    mouse_button_input: Res<Input<MouseButton>>,
-    keyboard_input: Res<Input<KeyCode>>,
-    windows: Query<&Window>,
-    camera_query: Query<(&Camera, &GlobalTransform), With<IsometricCamera>>,
-    mut unit_queries: ParamSet<(
-        Query<(Entity, &Transform, &Unit, Option<&Selected>)>,
-        Query<&mut Unit>,
-    )>,
+    input: (Res<Input<MouseButton>>, Res<Input<KeyCode>>),
+    ui_queries: (
+        Query<&Window>,
+        Query<(&Camera, &GlobalTransform), With<IsometricCamera>>,
+    ),
+    mut unit_queries: UnitSelectionQueries,
     mut movement_query: Query<&mut Movement>,
     selected_query: Query<Entity, With<Selected>>,
 ) {
+    let (mouse_button_input, keyboard_input) = input;
+    let (windows, camera_query) = ui_queries;
     let window = windows.single();
 
     // Handle left-click selection
@@ -128,8 +147,8 @@ pub fn unit_selection_system(
 
 pub fn selection_indicator_system(
     mut commands: Commands,
-    selected_query: Query<(Entity, &Transform, &Selected), (With<Unit>, Changed<Selected>)>,
-    indicator_query: Query<(Entity, &mut Transform), (With<SelectionIndicator>, Without<Unit>)>,
+    selected_query: SelectedUnitQuery,
+    indicator_query: SelectionIndicatorQuery,
 ) {
     // Remove old indicators
     for (entity, _) in indicator_query.iter() {
@@ -203,7 +222,7 @@ pub fn selection_indicator_system(
 pub fn target_indicator_system(
     mut commands: Commands,
     unit_query: Query<(&Unit, &Transform)>,
-    target_indicator_query: Query<(Entity, &mut Transform), (With<TargetIndicator>, Without<Unit>)>,
+    target_indicator_query: TargetIndicatorQuery,
 ) {
     // Remove old target indicators
     for (entity, _) in target_indicator_query.iter() {
@@ -287,7 +306,7 @@ fn assign_formation_positions(
                         Vec3::ZERO // Leader at front
                     } else {
                         let side = if i % 2 == 1 { -1.0 } else { 1.0 };
-                        let row = (i + 1) / 2;
+                        let row = i.div_ceil(2);
                         Vec3::new(side * spacing * 0.7, -(row as f32) * spacing * 0.5, 0.0)
                     }
                 }

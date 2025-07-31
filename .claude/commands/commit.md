@@ -49,6 +49,20 @@ description: Information for comitting
 - If any precommit check fails, immediately abort the entire process (both precommit and commit actions)
 - Display an error message and do not proceed until the issue is fixed
 
+### Precommit Check: Rust Code Quality (Priority Check)
+
+- **Trigger Condition**: When committing any Rust files (.rs) or Cargo.toml/Cargo.lock
+- **What to Check**: Run comprehensive Rust quality validation
+  - Execute `cargo check` for compilation validation
+  - Execute `cargo clippy -- -D warnings` for linting (treat warnings as errors)
+  - Execute `cargo fmt --check` for formatting validation
+  - Scan for debug statements (`println!`, `dbg!`, `eprintln!`) in committed files
+- **Failure Action**:
+  - Abort commit process and display detailed error message
+  - Show which specific check failed (check/clippy/fmt/debug)
+  - Provide suggestions: run `cargo fmt` for formatting, remove debug statements, fix clippy issues
+  - Require manual fixes before allowing commit to proceed
+
 ### Precommit Check: GraphQL Mutation/Query Argument Validation
 
 - **Trigger Condition**: When editing arguments in an existing or new GraphQL mutation/query

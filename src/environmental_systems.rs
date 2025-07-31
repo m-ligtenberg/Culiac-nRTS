@@ -1,3 +1,4 @@
+use bevy::log::info;
 use bevy::prelude::*;
 use rand::prelude::*;
 use std::f32::consts::PI;
@@ -148,16 +149,16 @@ impl EnvironmentalState {
             || (old_movement - self.movement_modifier).abs() > 0.1
         {
             match self.weather_type {
-                WeatherType::HeavyRain => println!(
+                WeatherType::HeavyRain => info!(
                     "🌧️ Heavy rain reduces visibility by {}% and slows movement by {}%",
                     ((1.0 - self.visibility_modifier) * 100.0) as i32,
                     ((1.0 - self.movement_modifier) * 100.0) as i32
                 ),
-                WeatherType::Fog => println!(
+                WeatherType::Fog => info!(
                     "🌫️ Dense fog severely limits visibility by {}% - units harder to detect",
                     ((1.0 - self.visibility_modifier) * 100.0) as i32
                 ),
-                WeatherType::LightRain => println!(
+                WeatherType::LightRain => info!(
                     "🌦️ Light rain reduces visibility by {}% and movement by {}%",
                     ((1.0 - self.visibility_modifier) * 100.0) as i32,
                     ((1.0 - self.movement_modifier) * 100.0) as i32
@@ -195,7 +196,7 @@ pub fn update_environmental_time(
             "Evening"
         };
 
-        println!(
+        info!(
             "🕒 Time: {:02}:00 ({}) | Weather: {:?} | Visibility: {:.0}% | Movement: {:.0}%",
             time_hour,
             time_period,
@@ -218,7 +219,7 @@ pub fn update_environmental_time(
             } else {
                 "daylight"
             };
-        println!(
+        info!(
             "🌅 Environmental transition: {} affects unit detection and ambient lighting",
             light_level
         );
@@ -407,10 +408,10 @@ pub fn trigger_weather_change(
             WeatherType::Fog => "Extremely limited visibility - close-quarters combat favored",
         };
 
-        println!(
+        info!(
             "🌤️ Weather changed to: {:?} (Intensity: {:.1})",
             env_state.weather_type, env_state.weather_intensity
         );
-        println!("📊 Tactical Impact: {}", tactical_info);
+        info!("📊 Tactical Impact: {}", tactical_info);
     }
 }

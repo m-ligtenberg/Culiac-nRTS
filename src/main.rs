@@ -11,7 +11,7 @@ use bevy_kira_audio::prelude::AudioPlugin as KiraAudioPlugin;
 
 // Import our modular components
 mod ai;
-mod audio_system;
+mod audio;
 mod auth;
 mod campaign;
 mod components;
@@ -20,10 +20,10 @@ mod coordination;
 mod environmental_systems;
 mod game_systems;
 mod intel_system;
-mod multiplayer_system;
+mod multiplayer;
 mod political_system;
 mod resources;
-mod save_system;
+mod save;
 mod spawners;
 mod systems;
 mod ui;
@@ -31,7 +31,7 @@ mod unit_systems;
 mod utils;
 
 use ai::{ai_director_system, difficulty_settings_system};
-use audio_system::{
+use audio::{
     background_music_system, radio_chatter_system, setup_audio_system, spatial_audio_system,
 };
 use campaign::{campaign_system, Campaign};
@@ -47,7 +47,7 @@ use environmental_systems::{
 };
 use game_systems::*;
 use intel_system::IntelSystemPlugin;
-use multiplayer_system::MultiplayerSystemPlugin;
+// use multiplayer::MultiplayerSystemPlugin;  // Temporarily disabled
 use political_system::PoliticalSystemPlugin;
 use resources::{not_in_menu_phase, *};
 use systems::*;
@@ -112,10 +112,16 @@ fn main() {
                 mission_system,
                 campaign_system,
                 ai_director_system,
-                wave_spawner_system,
-                optimized_unit_ai_system,
-                adaptive_ai_scheduler_system,
-                squad_management_system,
+            )
+                .run_if(resource_exists::<GameSetupComplete>()),
+        )
+        .add_systems(
+            Update,
+            wave_spawner_system.run_if(resource_exists::<GameSetupComplete>()),
+        )
+        .add_systems(
+            Update,
+            (
                 formation_movement_system,
                 communication_system,
                 advanced_tactical_ai_system,
