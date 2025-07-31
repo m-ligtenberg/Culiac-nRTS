@@ -86,8 +86,8 @@ impl SpatialGrid {
         let center_cell = GridCell::from_position(position, self.cell_size);
         let mut nearby_units = Vec::new();
 
-        // Check center cell and all neighboring cells
-        for cell in center_cell.get_neighbors() {
+        // Check cells within radius using spatial partitioning
+        for cell in center_cell.get_neighbors(cell_radius) {
             if let Some(units_in_cell) = self.units.get(&cell) {
                 for &(entity, unit_pos, max_range) in units_in_cell {
                     let distance = position.distance(unit_pos);
