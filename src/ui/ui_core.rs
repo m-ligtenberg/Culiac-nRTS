@@ -58,7 +58,7 @@ type HealthBarQuery<'a> = Query<
 pub fn ui_update_system(
     game_state: Res<GameState>,
     ai_director: Res<AiDirector>,
-    unit_query: Query<&Unit>,
+    unit_query: Query<&Unit, Changed<Unit>>,
     mut status_query: StatusTextQuery,
     mut wave_query: WaveTextQuery,
     mut score_query: ScoreTextQuery,

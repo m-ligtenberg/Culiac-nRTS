@@ -5,7 +5,7 @@ use bevy::prelude::*;
 type MiniMapIconQuery<'a> = Query<
     'a,
     'a,
-    (Entity, &'a mut Style, &'a MiniMapIcon),
+    (Entity, &'a mut Style, &'a MiniMapIcon, &'static Transform),
     (With<MiniMapIcon>, Changed<Transform>),
 >;
 

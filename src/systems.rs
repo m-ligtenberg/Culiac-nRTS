@@ -402,6 +402,8 @@ pub fn movement_system(
     time: Res<Time>,
     environmental_state: Res<EnvironmentalState>,
     mut unit_query: Query<(&mut Transform, &Movement, &Unit)>,
+    mut path_events: EventWriter<PathingEvent>,
+    transforms: Query<&Transform>,
 ) {
     for (mut transform, movement, unit) in unit_query.iter_mut() {
         if let Some(target_pos) = movement.target_position {
@@ -425,7 +427,7 @@ pub fn movement_system(
 pub fn combat_system(
     mut commands: Commands,
     mut unit_query: Query<(Entity, &mut Unit, &Transform)>,
-    immutable_unit_query: Query<(Entity, &Unit, &Transform)>,
+    immutable_unit_query: Query<(Entity, &Unit, &Transform), Without<AbilityEffect>>,
     effect_query: Query<&AbilityEffect>,
     environmental_state: Res<EnvironmentalState>,
     time: Res<Time>,
