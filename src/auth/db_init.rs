@@ -11,9 +11,9 @@ pub async fn initialize_database() -> Result<Pool<Sqlite>, AuthError> {
         .await
         .unwrap_or(false)
     {
-        println!("Creating database {}", database_url);
+        info!("Creating database {}", database_url);
         match Sqlite::create_database(&database_url).await {
-            Ok(_) => println!("Database created successfully"),
+            Ok(_) => info!("Database created successfully"),
             Err(error) => {
                 return Err(AuthError::DatabaseError(format!(
                     "Failed to create database: {}",
@@ -36,7 +36,7 @@ pub async fn initialize_database() -> Result<Pool<Sqlite>, AuthError> {
 }
 
 async fn run_migrations(pool: &SqlitePool) -> Result<(), AuthError> {
-    println!("Running database migrations...");
+    info!("Running database migrations...");
 
     // Read and execute migration files
     let migrations = [
@@ -48,19 +48,19 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), AuthError> {
     ];
 
     for (i, migration) in migrations.iter().enumerate() {
-        println!("Running migration {}...", i + 1);
+        info!("Running migration {}...", i + 1);
         sqlx::query(migration)
             .execute(pool)
             .await
             .map_err(|e| AuthError::DatabaseError(format!("Migration {} failed: {}", i + 1, e)))?;
     }
 
-    println!("All migrations completed successfully");
+    info!("All migrations completed successfully");
     Ok(())
 }
 
 pub async fn cleanup_expired_data(pool: &SqlitePool) -> Result<(), AuthError> {
-    println!("Cleaning up expired data...");
+    info!("Cleaning up expired data...");
 
     // Clean up expired sessions
     let expired_sessions = sqlx::query("DELETE FROM sessions WHERE expires_at < datetime('now')")
@@ -70,10 +70,7 @@ pub async fn cleanup_expired_data(pool: &SqlitePool) -> Result<(), AuthError> {
             AuthError::DatabaseError(format!("Failed to clean expired sessions: {}", e))
         })?;
 
-    println!(
-        "Cleaned up {} expired sessions",
-        expired_sessions.rows_affected()
-    );
+    info!("Cleaned up {} expired sessions", expired_sessions.rows_affected());
 
     // Clean up expired password resets
     let expired_resets =
@@ -124,7 +121,7 @@ pub async fn create_admin_user(
 
     // Check if admin user already exists
     if auth_db.get_user_by_username(username).await.is_ok() {
-        println!("Admin user '{}' already exists", username);
+        info!("Admin user '{}' already exists", username);
         return Ok(());
     }
 
@@ -152,7 +149,7 @@ pub async fn create_admin_user(
     .await
     .map_err(|e| AuthError::DatabaseError(format!("Failed to create admin user: {}", e)))?;
 
-    println!("Admin user '{}' created successfully", username);
+    info!("Admin user '{}' created successfully", username);
     Ok(())
 }
 

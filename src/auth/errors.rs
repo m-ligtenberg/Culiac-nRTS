@@ -59,6 +59,7 @@ impl std::error::Error for AuthError {}
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
+        // Map AuthError variants to corresponding HTTP status codes
         let (status, error_message) = match self {
             AuthError::InvalidCredentials => (StatusCode::UNAUTHORIZED, self.to_string()),
             AuthError::UserNotFound => (StatusCode::NOT_FOUND, self.to_string()),

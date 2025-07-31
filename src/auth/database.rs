@@ -48,6 +48,7 @@ impl AuthDatabase {
         .bind(now)
         .fetch_one(&self.pool)
         .await?;
+        info!("User '{}' created successfully", user.username);
 
         Ok(user)
     }

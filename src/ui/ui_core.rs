@@ -109,6 +109,7 @@ pub fn ui_update_system(
         } else {
             "MANUAL"
         };
+        // Adaptive difficulty status determined based on system configuration
         text.sections[0].value = format!(
             "Difficulty: {:.1} ({}) | Performance: {:.0}%\nD=Toggle | F1-F4=Set Level",
             ai_director.intensity_level,

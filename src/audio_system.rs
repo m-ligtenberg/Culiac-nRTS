@@ -292,7 +292,7 @@ pub fn play_ui_sound(audio_manager: &AudioManager, audio: &Audio, sound_name: &s
     if let Some(handle) = audio_manager.ui_sounds.get(sound_name) {
         let volume = audio_manager.master_volume * audio_manager.sfx_volume;
         audio.play(handle.clone()).with_volume(volume as f64);
-        println!("🔊 [UI] Playing: {}", sound_name);
+        info!("🔊 [UI] Playing: {}", sound_name);
     } else {
         play_console_fallback("ui", sound_name);
     }

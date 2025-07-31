@@ -385,6 +385,7 @@ fn assign_player_role(multiplayer_state: &mut MultiplayerState, player_id: Uuid)
             || matches!(role, PlayerRole::CartelCommander | PlayerRole::Observer)
         {
             multiplayer_state.player_assignments.insert(player_id, role);
+            info!("Assigned role {:?} to player {}", role, player_id);
             break;
         }
     }

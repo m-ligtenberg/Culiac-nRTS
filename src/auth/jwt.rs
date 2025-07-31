@@ -32,6 +32,7 @@ impl JwtService {
     pub fn generate_access_token(&self, user: &User) -> Result<String, AuthError> {
         let now = Utc::now();
         let expiry = now + self.access_token_expiry;
+        info!("Generating access token for user {}", user.id);
 
         let claims = Claims {
             sub: user.id.to_string(),

@@ -53,7 +53,7 @@ impl GridCell {
                 x: self.x + 1,
                 y: self.y + 1,
             },
-        ]
+        ] // Returns a 3x3 neighborhood including self and adjacent cells
     }
 }
 

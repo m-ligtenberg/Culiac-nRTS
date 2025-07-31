@@ -338,7 +338,7 @@ pub fn config_hotkeys_system(keyboard: Res<Input<KeyCode>>, mut config: ResMut<G
     // F11 - Toggle fullscreen
     if keyboard.just_pressed(KeyCode::F11) {
         config.video.fullscreen = !config.video.fullscreen;
-        println!(
+        info!(
             "🖥️ Fullscreen: {}",
             if config.video.fullscreen { "ON" } else { "OFF" }
         );
@@ -347,7 +347,7 @@ pub fn config_hotkeys_system(keyboard: Res<Input<KeyCode>>, mut config: ResMut<G
     // F3 - Toggle FPS display
     if keyboard.just_pressed(KeyCode::F3) {
         config.video.show_fps = !config.video.show_fps;
-        println!(
+        info!(
             "📊 FPS Display: {}",
             if config.video.show_fps { "ON" } else { "OFF" }
         );
