@@ -597,6 +597,15 @@ fn calculate_unit_ratio(_unit_query: &Query<&Unit>, _faction1: Faction, _faction
     1.0
 }
 
+// Tijdelijke placeholder implementaties
+fn calculate_kill_ratio(_unit_query: &Query<&Unit>, _faction1: Faction, _faction2: Faction) -> f32 {
+    0.5
+}
+
+fn calculate_unit_ratio(_unit_query: &Query<&Unit>, _faction1: Faction, _faction2: Faction) -> f32 {
+    1.0
+}
+
 fn calculate_adaptive_modifier(player_performance: f32, mission_time: f32) -> f32 {
     // Base adaptive scaling
     let performance_modifier = if player_performance < 0.2 {
