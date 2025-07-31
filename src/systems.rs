@@ -429,6 +429,7 @@ pub fn combat_system(
     effect_query: Query<&AbilityEffect>,
     environmental_state: Res<EnvironmentalState>,
     time: Res<Time>,
+    mut combat_events: EventWriter<CombatEvent>,
 ) {
     // Find combat pairs and calculate damage - prioritize assigned targets (optimized)
     let combat_events = find_combat_pairs_optimized(

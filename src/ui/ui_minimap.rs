@@ -6,7 +6,7 @@ type MiniMapIconQuery<'a> = Query<
     'a,
     'a,
     (Entity, &'a mut Style, &'a MiniMapIcon),
-    (With<MiniMapIcon>, Without<Transform>),
+    (With<MiniMapIcon>, Changed<Transform>),
 >;
 
 // ==================== MINIMAP SYSTEM ====================

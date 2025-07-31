@@ -4,11 +4,11 @@ use bevy::prelude::*;
 // ==================== CAMERA CONTROL SYSTEM ====================
 
 pub fn camera_control_system(
-    mut camera_query: Query<(&mut Transform, &mut IsometricCamera), With<Camera>>,
+    mut camera_query: Query<(&mut Transform, &mut IsometricCamera)>,
     input: Res<Input<KeyCode>>,
-    _mouse_wheel: Res<Input<MouseButton>>,
     mut scroll_events: EventReader<bevy::input::mouse::MouseWheel>,
     time: Res<Time>,
+    mut windows: Query<&mut Window>,
 ) {
     // Robust camera control with error handling
     let Ok((mut transform, camera)) = camera_query.get_single_mut() else {

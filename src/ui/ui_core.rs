@@ -7,12 +7,7 @@ type StatusTextQuery<'a> = Query<
     'a,
     'a,
     &'a mut Text,
-    (
-        With<StatusText>,
-        Without<WaveText>,
-        Without<ScoreText>,
-        Without<DifficultyDisplay>,
-    ),
+    With<StatusText>,
 >;
 
 type WaveTextQuery<'a> = Query<
