@@ -84,6 +84,8 @@ pub fn ui_update_system(
             "{}\nCartel: {} | Military: {}",
             status, cartel_count, military_count
         );
+    } else {
+        warn!("StatusText UI element not found");
     }
 
     // Update wave text
