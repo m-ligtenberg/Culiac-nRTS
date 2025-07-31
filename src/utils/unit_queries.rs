@@ -112,14 +112,9 @@ pub fn count_nearby_allies(
     friendly_faction: Faction,
     radius: f32,
 ) -> usize {
-    find_units_in_radius(unit_query, position, radius, false)
+    get_ally_units(unit_query, friendly_faction)
         .into_iter()
-        .filter(|(_, _, _, _)| {
-            // Filter for allies by checking faction in the query
-            unit_query
-                .iter()
-                .any(|(entity, unit, _)| unit.faction == friendly_faction)
-        })
+        .filter(|(_, pos, _, _)| position.distance(*pos) <= radius)
         .count()
 }
 
@@ -130,14 +125,9 @@ pub fn count_nearby_enemies(
     friendly_faction: Faction,
     radius: f32,
 ) -> usize {
-    find_units_in_radius(unit_query, position, radius, false)
+    get_enemy_units(unit_query, friendly_faction)
         .into_iter()
-        .filter(|(_, _, _, _)| {
-            // Filter for enemies by checking faction in the query
-            unit_query
-                .iter()
-                .any(|(entity, unit, _)| unit.faction != friendly_faction)
-        })
+        .filter(|(_, pos, _, _)| position.distance(*pos) <= radius)
         .count()
 }
 

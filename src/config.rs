@@ -194,17 +194,14 @@ impl GameConfig {
             // Create default config if none exists
             let default_config = Self::default();
             default_config.save()?;
-            println!(
-                "📁 Created default configuration file at: {:?}",
-                config_path
-            );
+            info!("📁 Created default configuration file at: {:?}", config_path);
             return Ok(default_config);
         }
 
         let config_content = fs::read_to_string(&config_path)?;
         let config: GameConfig = serde_json::from_str(&config_content)?;
 
-        println!("⚙️ Loaded configuration from: {:?}", config_path);
+        info!("⚙️ Loaded configuration from: {:?}", config_path);
         Ok(config)
     }
 
@@ -219,7 +216,7 @@ impl GameConfig {
         let config_json = serde_json::to_string_pretty(self)?;
         fs::write(&config_path, config_json)?;
 
-        println!("💾 Configuration saved to: {:?}", config_path);
+        info!("💾 Configuration saved to: {:?}", config_path);
         Ok(())
     }
 

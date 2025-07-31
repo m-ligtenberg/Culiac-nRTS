@@ -274,7 +274,7 @@ pub fn play_spatial_sound(
             "radio" => "📻",
             _ => "🔊",
         };
-        println!(
+        info!(
             "{} [{}] Playing: {} at {:.1}, {:.1}",
             icon,
             sound_type.to_uppercase(),
@@ -326,11 +326,11 @@ pub fn queue_radio_message(
 
 fn play_console_fallback(sound_type: &str, sound_name: &str) {
     match sound_type {
-        "combat" => println!("🔫 [COMBAT] {}", sound_name),
-        "ui" => println!("🔊 [UI] {}", sound_name),
-        "ambient" => println!("🌆 [AMBIENT] {}", sound_name),
-        "radio" => println!("📻 [RADIO] {}", sound_name),
-        _ => println!("🔊 [AUDIO] {}", sound_name),
+        "combat" => info!("🔫 [COMBAT] {}", sound_name),
+        "ui" => info!("🔊 [UI] {}", sound_name),
+        "ambient" => info!("🌆 [AMBIENT] {}", sound_name),
+        "radio" => info!("📻 [RADIO] {}", sound_name),
+        _ => info!("🔊 [AUDIO] {}", sound_name),
     }
 }
 
