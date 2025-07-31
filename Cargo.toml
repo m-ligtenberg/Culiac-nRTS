@@ -43,6 +43,10 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
+[[bench]]
+name = "spatial_benchmarks"
+harness = false
+
 [[bin]]
 name = "culiacan-rts"
 path = "src/main.rs"
