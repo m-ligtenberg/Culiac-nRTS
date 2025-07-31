@@ -19,8 +19,11 @@ pub fn minimap_system(
 ) {
     if let Ok(minimap_entity) = minimap_query.get_single() {
         // Clear old icons
-        for (entity, _, _) in minimap_icon_query.iter() {
-            commands.entity(entity).despawn();
+        // Clear only icons for units die niet meer bestaan
+        for (entity, _, icon, _) in minimap_icon_query.iter() {
+            if !unit_query.iter().any(|(_, u)| u.health > 0.0 && u.faction == icon.faction) {
+                commands.entity(entity).despawn();
+            }
         }
 
         // Create new icons for all living units

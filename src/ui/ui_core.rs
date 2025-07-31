@@ -10,41 +10,11 @@ type StatusTextQuery<'a> = Query<
     With<StatusText>,
 >;
 
-type WaveTextQuery<'a> = Query<
-    'a,
-    'a,
-    &'a mut Text,
-    (
-        With<WaveText>,
-        Without<StatusText>,
-        Without<ScoreText>,
-        Without<DifficultyDisplay>,
-    ),
->;
+type WaveTextQuery<'a> = Query<'a, 'a, &'a mut Text, With<WaveText>>;
 
-type ScoreTextQuery<'a> = Query<
-    'a,
-    'a,
-    &'a mut Text,
-    (
-        With<ScoreText>,
-        Without<StatusText>,
-        Without<WaveText>,
-        Without<DifficultyDisplay>,
-    ),
->;
+type ScoreTextQuery<'a> = Query<'a, 'a, &'a mut Text, With<ScoreText>>;
 
-type DifficultyTextQuery<'a> = Query<
-    'a,
-    'a,
-    &'a mut Text,
-    (
-        With<DifficultyDisplay>,
-        Without<StatusText>,
-        Without<WaveText>,
-        Without<ScoreText>,
-    ),
->;
+type DifficultyTextQuery<'a> = Query<'a, 'a, &'a mut Text, With<DifficultyDisplay>>;
 
 type HealthBarQuery<'a> = Query<
     'a,
