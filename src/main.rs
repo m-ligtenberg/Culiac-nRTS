@@ -37,8 +37,10 @@ use audio::{
 use campaign::{campaign_system, Campaign};
 use config::{config_hotkeys_system, performance_monitor_system, setup_config_system};
 use coordination::{
-    advanced_tactical_ai_system, communication_system, formation_movement_system,
-    squad_management_system,
+    advanced_tactical_ai_system,
+    communication_system,
+    formation_movement_system,
+    // squad_management_system,  // Temporarily disabled
 };
 use environmental_systems::{
     spawn_weather_particles, trigger_weather_change, update_ambient_lighting,
@@ -53,8 +55,10 @@ use resources::{not_in_menu_phase, *};
 use systems::*;
 use ui::*;
 use utils::{
-    adaptive_ai_scheduler_system, optimized_unit_ai_system, setup_ai_optimizer,
-    setup_particle_pool, update_pooled_particles_system,
+    // adaptive_ai_scheduler_system, optimized_unit_ai_system,  // Temporarily disabled
+    setup_ai_optimizer,
+    setup_particle_pool,
+    update_pooled_particles_system,
 };
 
 fn main() {
