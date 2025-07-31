@@ -74,7 +74,7 @@ fn main() {
         .add_plugins(KiraAudioPlugin)
         .add_plugins(IntelSystemPlugin)
         .add_plugins(PoliticalSystemPlugin)
-        .add_plugins(MultiplayerSystemPlugin)
+        //.add_plugins(MultiplayerSystemPlugin)  // Temporarily disabled until implemented
         .init_resource::<GameState>()
         .init_resource::<AiDirector>()
         .init_resource::<Campaign>()
@@ -92,7 +92,7 @@ fn main() {
             ),
         )
         .add_systems(
-            Update,
+            Startup,
             setup_game
                 .run_if(resource_exists::<GameAssets>())
                 .run_if(not(resource_exists::<GameSetupComplete>()))

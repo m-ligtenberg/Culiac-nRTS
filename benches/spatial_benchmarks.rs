@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use bevy::prelude::*;
-use culiacan_rts::spatial::{SpatialGrid, GridCell};
+use culiacan_rts::utils::spatial::{SpatialGrid, GridCell};
 
 fn spatial_grid_benchmark(c: &mut Criterion) {
     let mut grid = SpatialGrid::new(50.0);
