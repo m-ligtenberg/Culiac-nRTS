@@ -119,6 +119,10 @@ pub fn ui_update_system(
             ai_director.player_performance * 100.0
         );
     }
+    // Creative toevoeging: indien in debug mode, log extra informatie voor een beter overzicht
+    if cfg!(debug_assertions) {
+        info!("DEBUG: Game Phase: {:?}, Unit Count: {}", game_state.game_phase, unit_query.iter().count());
+    }
 }
 
 pub fn health_bar_system(
